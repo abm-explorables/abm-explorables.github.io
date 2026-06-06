@@ -3,7 +3,6 @@
 // sim ロジックは無改変。:root / html / body / .wrap は Base.astro の global style へ移動済み。
 ---
 
-<div class="eyebrow">Agent-Based Models · 01</div>
 <h1>市場が一斉に<br><em>同じ方向を向く</em>とき</h1>
 <p class="lede">トレーダーは普段バラバラに売り買いする。だが互いの判断が連動し始めると、群れができる。<b>直感的には、連動する人が増えれば値動きは滑らかに足し合わさるだけ</b>に思える。下のスライダーを
     0 から右へ動かして、確かめてほしい。</p>
@@ -56,7 +55,7 @@
         </div>
         <div class="crow">
             <div class="clabel"><b>群れの活性</b> a<br><span style="color:var(--dim)">取引する確率</span> = <span id="lblA"
-                    style="color:var(--muted)">0.15</span></div>
+                    class="val" style="color:var(--muted)">0.15</span></div>
             <div class="slidewrap">
                 <div class="track" style="background:#2a3042"></div>
                 <input type="range" id="sA" min="0.05" max="0.45" step="0.01" value="0.15">
@@ -77,14 +76,6 @@
     を上げる」現実側の一例にすぎない。需給そのものはモデルに入っていない。</p>
 
 <style>
-    .eyebrow {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 11px;
-        letter-spacing: .32em;
-        text-transform: uppercase;
-        color: var(--dim)
-    }
-
     h1 {
         font-family: "Fraunces", serif;
         font-weight: 900;
@@ -94,9 +85,10 @@
         letter-spacing: -.015em
     }
 
+    /* navy 原則 (Yuito 2026-06-07): 意味を背負わない hue pop は置かない — 見出し強調は色に頼らない */
     h1 em {
-        font-style: italic;
-        color: var(--calm)
+        font-style: normal;
+        color: inherit
     }
 
     .lede {
@@ -113,11 +105,10 @@
     }
 
     .card {
-        background: linear-gradient(180deg, var(--panel), var(--panel2));
+        background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 14px;
         margin-top: 34px;
-        box-shadow: 0 30px 80px -40px #000;
         overflow: hidden
     }
 
@@ -132,12 +123,10 @@
     }
 
     .badge {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 12.5px;
-        font-weight: 600;
-        letter-spacing: .06em;
-        padding: 7px 13px;
-        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 6px 12px;
+        border-radius: 6px;
         border: 1px solid;
         transition: color .35s, border-color .35s, background .35s;
         white-space: nowrap
@@ -155,9 +144,8 @@
     }
 
     .read .k {
-        font-size: 10px;
-        letter-spacing: .14em;
-        text-transform: uppercase;
+        font-family: "Spectral", Georgia, serif;
+        font-size: 12px;
         color: var(--dim)
     }
 
@@ -215,10 +203,7 @@
 
     .plot h3 {
         margin: 0 0 4px;
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 10.5px;
-        letter-spacing: .16em;
-        text-transform: uppercase;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500
     }
@@ -244,8 +229,7 @@
     }
 
     .clabel {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 12px;
+        font-size: 13.5px;
         color: var(--muted);
         width: 240px;
         min-width: 180px
@@ -257,6 +241,9 @@
     }
 
     .clabel .val {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        font-variant-numeric: tabular-nums;
         color: var(--calm);
         transition: color .35s
     }
@@ -275,7 +262,12 @@
         right: 0;
         height: 4px;
         border-radius: 4px;
-        background: linear-gradient(90deg, #2a4a8a 0%, #3a3a52 38%, #5a3a3a 42%, #7a2f2f 100%)
+        /* c 軸上の regime 分布をそのまま色にする (データ表現としての gradient、装飾ではない) */
+        background: linear-gradient(90deg,
+                color-mix(in srgb, var(--calm) 45%, var(--bg)) 0%,
+                color-mix(in srgb, var(--calm) 45%, var(--bg)) 28%,
+                color-mix(in srgb, var(--warn) 45%, var(--bg)) 40%,
+                color-mix(in srgb, var(--crash) 45%, var(--bg)) 100%)
     }
 
     .mark {
@@ -343,9 +335,8 @@
     }
 
     button {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 12px;
-        letter-spacing: .04em;
+        font-family: "Spectral", Georgia, serif;
+        font-size: 13.5px;
         color: var(--text);
         background: #171b26;
         border: 1px solid var(--line);
@@ -380,8 +371,7 @@
 
     .foot {
         margin-top: 26px;
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 11.5px;
+        font-size: 13.5px;
         line-height: 1.7;
         color: var(--dim);
         max-width: 70ch
@@ -462,10 +452,15 @@
         const flash = document.getElementById('flash');
 
         function hue(r) { return (r * 47) % 360; }
+        const REGIMES = {
+            sub: { cls: 'sub', col: '#5a86d6', txt: '安定 / sub-critical' },
+            near: { cls: 'near', col: '#e0a64e', txt: '臨界近傍 / near-critical' },
+            sup: { cls: 'sup', col: '#ff5e57', txt: '群衆支配 / super-critical' }
+        };
         function regime(gf) {
-            if (gf < 0.08) return { cls: 'sub', col: '#5a86d6', txt: '安定 / sub-critical' };
-            if (gf < 0.20) return { cls: 'near', col: '#e0a64e', txt: '臨界近傍 / near-critical' };
-            return { cls: 'sup', col: '#ff5e57', txt: '群衆支配 / super-critical' };
+            if (gf < 0.08) return REGIMES.sub;
+            if (gf < 0.20) return REGIMES.near;
+            return REGIMES.sup;
         }
         const stories = {
             sub: 'クラスタは小さく分断され、無数の独立な売り買いが打ち消し合う。リターンはほぼ正規分布。暴落は起きない。',
@@ -543,7 +538,7 @@
                 const z = LOmin + (i + 0.5) * bw;
                 const x0 = X(LOmin + i * bw), x1 = X(LOmin + (i + 1) * bw);
                 const tail = Math.abs(z) > 3;
-                g.fillStyle = tail ? '#ff5e57' : 'rgba(122,150,210,0.55)';
+                g.fillStyle = tail ? '#ff5e57' : 'rgba(90,134,214,0.55)';
                 let yh = Math.max(Y(cnt[i]), tail ? h - 16 : Y(cnt[i]));
                 const top = Y(cnt[i]); const barH = Math.max(h - 12 - top, tail ? 2.2 : 0.5);
                 g.fillRect(x0 + 0.5, h - 12 - barH, (x1 - x0) - 1, barH);
@@ -559,9 +554,19 @@
         const badge = document.getElementById('badge'), story = document.getElementById('story');
         const rG = document.getElementById('rGiant'), rK = document.getElementById('rKurt'), rM = document.getElementById('rMax');
         const lblC = document.getElementById('lblC'), lblA = document.getElementById('lblA');
-        let lastCls = 'sub';
+        // spec 002: regime 表示のヒステリシス — 新 regime が REGIME_HOLD_MS 連続したときだけ表示を切替
+        const REGIME_HOLD_MS = 1500;
+        let lastCls = 'sub', candCls = 'sub', candSince = 0;
         function paintUI() {
-            const s = stats(); const reg = regime(s.gf);
+            const s = stats(); const inst = regime(s.gf);
+            const tNow = performance.now();
+            if (inst.cls !== candCls) { candCls = inst.cls; candSince = tNow; }
+            if (candCls !== lastCls && tNow - candSince >= REGIME_HOLD_MS) {
+                lastCls = candCls;
+                story.innerHTML = '<b>いま見えていること:</b> ' + stories[lastCls];
+                const b = story.querySelector('b'); if (b) b.style.color = REGIMES[lastCls].col;
+            }
+            const reg = REGIMES[lastCls];
             badge.textContent = '— ' + reg.txt;
             badge.style.color = reg.col; badge.style.borderColor = reg.col;
             badge.style.background = reg.col + '1a';
@@ -569,11 +574,6 @@
             rK.textContent = (s.kurt >= 0 ? '+' : '') + s.kurt.toFixed(1); rK.style.color = s.kurt > 3 ? '#ff5e57' : (s.kurt > 1 ? '#e0a64e' : '#e8e9ee');
             rM.textContent = (s.mx * 100).toFixed(1) + '%'; rM.style.color = s.mx > 0.07 ? '#ff5e57' : '#e8e9ee';
             lblC.style.color = reg.col;
-            if (reg.cls !== lastCls) {
-                lastCls = reg.cls;
-                story.innerHTML = '<b>いま見えていること:</b> ' + stories[reg.cls];
-                const b = story.querySelector('b'); if (b) b.style.color = reg.col;
-            }
         }
 
         let acc = 0, last = performance.now();
