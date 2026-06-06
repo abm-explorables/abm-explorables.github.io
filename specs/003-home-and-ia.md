@@ -1,0 +1,67 @@
+# spec 003: HOME 追加とサイト IA 再編
+
+Status: draft — **blocked on Yuito input**(Macrocosm 良さ抽出 / HOME メッセージ copy)
+前提資料: specs/001-v0-kickoff.md, specs/002-restyle-narrative.md, notes/ui-de-ai-research.md
+
+## Goal
+サイトを「デモ1枚」から「メッセージを持つサイト」に再編する。
+HOME で「ABM はいいぞ」という本当に伝えたいメッセージを打ち出し、そこから具体的な事例(explorable)に飛ぶ構造。
+参照モデル: **Macrocosm(商品を持たない版)** — 良さの抽出は Yuito から後送。
+
+## Vision(Yuito, 2026-06-07)
+- HOME = かっこいい画面 + コアメッセージ「ABM はいいぞ」の配置
+- HOME → 個別事例ページへ誘導
+- 事例は金融に限定しない: 将来的に交通(例: Nagel-Schreckenberg、渋滞の自然発生)、疫学(例: ネットワーク上の SIR)等も「事例の一つ」として並ぶ
+- 金融 ABM は最初の事例であって、サイトの定義ではない
+
+## IA(情報設計)
+```
+/                       HOME — メッセージ + 事例への導線
+/cases/cont-bouchaud/   既存 Cont-Bouchaud explorable(index から移動)
+/cases/...              将来の事例(v0 では作らない。IA 上の枠だけ)
+```
+- WHEN ルート URL にアクセスする THE SYSTEM SHALL HOME を表示する(デモ直置きをやめる)
+- WHEN HOME から事例導線を辿る THE SYSTEM SHALL Cont-Bouchaud ページに遷移する
+- WHEN 旧 URL 構造を変更する THE SYSTEM SHALL base path(/abm-explorables)配下で全リンク・アセットを 404 させない(001 の地雷を継続警戒)
+
+## Pending inputs(Yuito から後送 — これが来るまで実装に入らない)
+- [ ] Macrocosm の「良さの抽出」(何がかっこいいのか、何を借りるのか)
+- [ ] HOME のコアメッセージ copy(「ABM はいいぞ」の実文言)
+- [ ] HOME の具体的な内容構成
+
+## 002 との関係
+- 002(restyle + narrative)は **Cont-Bouchaud ページ単体の品質**の話で、003 と独立に有効
+- 002 の成果物は移動先 `/cases/cont-bouchaud/` にそのまま載る
+- 推奨順序: **002 → 003**(002 は要件が閉じていて今動ける。003 は Yuito input 待ちでブロック中)— 順序の確定は Yuito
+- HOME のビジュアル言語が確定したら、002 で決めた「dark 維持」と整合するか再確認する(齟齬が出たら spec に戻る)
+
+## Non-goals (003)
+2本目以降のデモ実装 / カスタムドメイン / CMS・ブログ機能 / Macrocosm の模倣(良さの「抽出」であってパスティーシュではない — notes §5 メタ警告)
+
+## Constraints
+- Astro + GitHub Pages 構成は維持(001 の locked decisions 継続)
+- demos client-side 原則は維持
+- 美的方向性の決定は Yuito(memory: design-direction-is-yuitos)。AI は選択肢提示と実装
+
+## Tasks(Pending inputs 解消後に確定)
+1. Macrocosm 抽出 + メッセージ copy を本 spec に反映、HOME のビジュアル/コンテンツ要件を EARS で確定
+2. ルーティング再編: index.mdx → HOME、デモを /cases/cont-bouchaud/ へ。内部リンクは BASE_URL 経由
+3. HOME 実装 → Yuito レビュー(gate)
+4. deploy + 404 全数チェック(001 acceptance の再実行)
+
+## Acceptance criteria(暫定 — input 後に追記)
+- [ ] / で HOME、/cases/cont-bouchaud/ でデモが表示される
+- [ ] base path 配下で 404 ゼロ(リンク・アセット全数)
+- [ ] デモの sim 挙動が移動後も不変
+- [ ] HOME のメッセージ・ビジュアルが Yuito レビュー通過
+
+## Checklist
+- [ ] HOME の「かっこいい」が Yuito の言葉で要件化されているか(AI の解釈で埋めていないか)
+- [ ] メッセージ copy の出所が Yuito か
+- [ ] URL 移動に伴うリンク切れの検証方法が書かれているか
+- [ ] 002 との依存関係・順序が明記されているか
+- [ ] 事例の将来拡張(交通・疫学)が IA に枠として存在するが、実装スコープに混入していないか
+
+## Open
+- デモ移動後、旧 index URL(= 新 HOME)を踏んだ既存共有リンクへの配慮は不要か(v0 共有がまだ少ない今のうちに動かすのが安い、という判断でよいか)
+- 事例 URL 命名: /cases/cont-bouchaud/ か /finance/criticality/ か(ドメイン軸 vs モデル軸。事例が増えたときの分類に効く)
