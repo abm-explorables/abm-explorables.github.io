@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>感染の閾値 — Network SIR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spectral:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --panel: #111733;
+            --panel2: #0c1226;
+            --line: #222a47;
+            --text: #e7eaf4;
+            --muted: #828aa8;
+            --dim: #586079;
+            --s: #46527a;
+            /* susceptible — navy-grey, neutral */
+            --i: #ff5e57;
+            /* infected — danger red */
+            --r: #5fae9e;
+            /* recovered/immune — muted teal */
+            --accent: #5b7fd6;
+            --gauss: #5a6172;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Spectral", Georgia, serif;
+            -webkit-font-smoothing: antialiased
+        }
+
+        .wrap {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 54px 28px 80px
+        }
+
+        .eyebrow {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 11px;
+            letter-spacing: .32em;
+            text-transform: uppercase;
+            color: var(--dim)
+        }
+
+        h1 {
+            font-family: "Fraunces", serif;
+            font-weight: 900;
+            font-size: clamp(34px, 5.4vw, 58px);
+            line-height: 1.02;
+            margin: .28em 0 .18em;
+            letter-spacing: -.015em
+        }
+
+        h1 em {
+            font-style: italic;
+            color: var(--i)
+        }
+
+        .lede {
+            font-size: 18px;
+            line-height: 1.62;
+            color: #c6cad9;
+            max-width: 62ch;
+            font-weight: 300
+        }
+
+        .lede b {
+            color: var(--text);
+            font-weight: 500
+        }
+
+        .card {
+            background: linear-gradient(180deg, var(--panel), var(--panel2));
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            margin-top: 34px;
+            box-shadow: 0 30px 80px -40px #000;
+            overflow: hidden
+        }
+
+        .bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--line);
+            flex-wrap: wrap
+        }
+
+        .badge {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            padding: 7px 13px;
+            border-radius: 999px;
+            border: 1px solid;
+            transition: color .35s, border-color .35s, background .35s;
+            white-space: nowrap
+        }
+
+        .reads {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap
+        }
+
+        .read {
+            font-family: "IBM Plex Mono", monospace;
+            text-align: right
+        }
+
+        .read .k {
+            font-size: 10px;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+            color: var(--dim)
+        }
+
+        .read .v {
+            font-size: 21px;
+            font-weight: 600;
+            margin-top: 2px;
+            font-variant-numeric: tabular-nums
+        }
+
+        .stage {
+            display: flex;
+            gap: 0;
+            flex-wrap: wrap
+        }
+
+        .net {
+            position: relative;
+            flex: 1 1 540px;
+            min-width: 300px;
+            border-right: 1px solid var(--line)
+        }
+
+        .net canvas {
+            display: block;
+            width: 100%;
+            height: auto
+        }
+
+        .legend {
+            position: absolute;
+            left: 14px;
+            bottom: 12px;
+            display: flex;
+            gap: 14px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 10.5px;
+            color: var(--muted)
+        }
+
+        .legend i {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            margin-right: 5px
+        }
+
+        .right {
+            flex: 1 1 360px;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column
+        }
+
+        .plot {
+            flex: 1;
+            padding: 14px 16px 6px;
+            border-bottom: 1px solid var(--line)
+        }
+
+        .plot:last-child {
+            border-bottom: none
+        }
+
+        .plot h3 {
+            margin: 0 0 4px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 10.5px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-weight: 500
+        }
+
+        .plot canvas {
+            display: block;
+            width: 100%;
+            height: auto
+        }
+
+        .controls {
+            padding: 22px 22px 8px;
+            border-top: 1px solid var(--line);
+            background: #080c16
+        }
+
+        .crow {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-bottom: 18px;
+            flex-wrap: wrap
+        }
+
+        .clabel {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 12px;
+            color: var(--muted);
+            width: 240px;
+            min-width: 180px
+        }
+
+        .clabel b {
+            color: var(--text);
+            font-weight: 600
+        }
+
+        .clabel .val {
+            color: var(--accent);
+            transition: color .35s
+        }
+
+        .slidewrap {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+            height: 34px
+        }
+
+        .track {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #26408a 0%, #3a3a52 45%, #5a3a3a 55%, #7a2f2f 100%)
+        }
+
+        .track.flat {
+            background: #2a3350
+        }
+
+        .mark {
+            position: absolute;
+            top: 6px;
+            width: 2px;
+            height: 22px;
+            background: var(--i);
+            left: 22%
+        }
+
+        .mark span {
+            position: absolute;
+            top: -19px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 9.5px;
+            letter-spacing: .05em;
+            color: var(--i);
+            white-space: nowrap
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 34px;
+            background: transparent;
+            margin: 0;
+            cursor: grab
+        }
+
+        input[type=range]:active {
+            cursor: grabbing
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--text);
+            border: 3px solid var(--bg);
+            margin-top: 8px;
+            box-shadow: 0 2px 8px #000
+        }
+
+        input[type=range]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--text);
+            border: 3px solid var(--bg);
+            box-shadow: 0 2px 8px #000
+        }
+
+        .btns {
+            display: flex;
+            gap: 10px;
+            padding: 4px 0 18px
+        }
+
+        button {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 12px;
+            letter-spacing: .04em;
+            color: var(--text);
+            background: #141a2c;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 9px 16px;
+            cursor: pointer;
+            transition: background .2s, border-color .2s
+        }
+
+        button:hover {
+            background: #1b2236;
+            border-color: #374063
+        }
+
+        .read-out {
+            margin-top: 30px;
+            font-size: 16.5px;
+            line-height: 1.65;
+            color: #c0c4d2;
+            max-width: 64ch;
+            font-weight: 300;
+            min-height: 3.3em
+        }
+
+        .read-out b {
+            color: var(--text);
+            font-weight: 500;
+            transition: color .35s
+        }
+
+        .foot {
+            margin-top: 26px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 11.5px;
+            line-height: 1.7;
+            color: var(--dim);
+            max-width: 70ch
+        }
+
+        .foot b {
+            color: var(--muted);
+            font-weight: 500
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="eyebrow">Agent-Based Models · 02</div>
+        <h1>感染力を少し上げると<br><em>被害も少しだけ増える</em>？</h1>
+        <p class="lede">そう思える。だが感染症には<b>引き返せない一点</b>がある ──
+            その手前では火種が消え、超えた瞬間に集団全体へ燃え広がる。被害は比例して増えるのではなく、ある閾値で跳ね上がる。下のスライダーで一人あたりの感染力を上げて、その一点を探してほしい。</p>
+
+        <div class="card">
+            <div class="bar">
+                <div class="badge" id="badge">— 収束 / sub-threshold</div>
+                <div class="reads">
+                    <div class="read">
+                        <div class="k">再生産数 R₀</div>
+                        <div class="v" id="rR0">0.0</div>
+                    </div>
+                    <div class="read">
+                        <div class="k">現在感染中</div>
+                        <div class="v" id="rActive">0%</div>
+                    </div>
+                    <div class="read">
+                        <div class="k">累計感染</div>
+                        <div class="v" id="rTotal">0%</div>
+                    </div>
+                    <div class="read">
+                        <div class="k">ピーク</div>
+                        <div class="v" id="rPeak">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stage">
+                <div class="net">
+                    <canvas id="cNet"></canvas>
+                    <div class="legend">
+                        <span><i style="background:var(--s)"></i>未感染</span>
+                        <span><i style="background:var(--i)"></i>感染中</span>
+                        <span><i style="background:var(--r)"></i>回復/免疫</span>
+                    </div>
+                </div>
+                <div class="right">
+                    <div class="plot">
+                        <h3>感染者数の推移 — the curve</h3>
+                        <canvas id="cCurve"></canvas>
+                    </div>
+                    <div class="plot">
+                        <h3>集団の内訳 S / I / R</h3>
+                        <canvas id="cSir"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="crow">
+                    <div class="clabel"><b>感染力</b> β<br><span style="color:var(--dim)">1接触あたりの感染確率</span> = <span
+                            class="val" id="lblB">0.022</span></div>
+                    <div class="slidewrap">
+                        <div class="track"></div>
+                        <div class="mark"><span>閾値 R₀ = 1</span></div>
+                        <input type="range" id="sB" min="0" max="0.05" step="0.001" value="0.022">
+                    </div>
+                </div>
+                <div class="crow">
+                    <div class="clabel"><b>距離確保</b> d<br><span style="color:var(--dim)">接触の削減率</span> = <span id="lblD"
+                            style="color:var(--muted)">0%</span></div>
+                    <div class="slidewrap">
+                        <div class="track flat"></div>
+                        <input type="range" id="sD" min="0" max="0.85" step="0.01" value="0">
+                    </div>
+                </div>
+                <div class="crow">
+                    <div class="clabel"><b>ワクチン接種</b> v<br><span style="color:var(--dim)">事前に免疫を持つ割合</span> = <span
+                            id="lblV" style="color:var(--muted)">0%</span></div>
+                    <div class="slidewrap">
+                        <div class="track flat"></div>
+                        <input type="range" id="sV" min="0" max="0.85" step="0.01" value="0">
+                    </div>
+                </div>
+                <div class="btns">
+                    <button id="bPlay">⏸ pause</button>
+                    <button id="bReset">↺ 流行をリセット</button>
+                </div>
+            </div>
+        </div>
+
+        <p class="read-out" id="story"><b>いま見えていること:</b> R₀ が 1 を下回り、感染は数人で打ち消えて消える。隣に伝わる前に回復してしまうため、流行は立ち上がらない。</p>
+
+        <p class="foot"><b>モデル:</b> 接触ネットワーク上の SIR。N=420 人を地理的な近さで結び、感染者は毎ステップ隣人を確率 β(1−d) で感染させ、確率 γ で回復・免疫を得る。<b>R₀ ≈
+                β(1−d)/γ × 平均接触数</b> が 1 を超えると流行が起きる ── これは接触網上のパーコレーション転移そのもので、Cont-Bouchaud と同じ「臨界閾値」だ。距離確保は β を下げて R₀
+            を 1
+            未満に押し戻し、ワクチンは感染しうる相手を間引いて同じ効果(集団免疫)を生む。これは機構を見るための玩具で、特定の感染症を予測するものではない。エージェント型疫学モデルは、2020年に英国・米国の都市封鎖政策を実際に動かした(Imperial
+            College, Ferguson et al.)。</p>
+    </div>
+
+    <script>
+        (() => {
+            const N = 420, R = 0.07, GAMMA = 0.07, MAXT = 520;
+            // ---- layout: random points in unit square ----
+            const px = new Float32Array(N), py = new Float32Array(N);
+            for (let i = 0; i < N; i++) { px[i] = 0.04 + 0.92 * Math.random(); py[i] = 0.04 + 0.92 * Math.random(); }
+            // ---- spatial neighbour lists + edges ----
+            const nb = Array.from({ length: N }, () => []); const edges = [];
+            const R2 = R * R;
+            for (let i = 0; i < N; i++)for (let j = i + 1; j < N; j++) {
+                const dx = px[i] - px[j], dy = py[i] - py[j];
+                if (dx * dx + dy * dy < R2) { nb[i].push(j); nb[j].push(i); edges.push(i, j); }
+            }
+            let degSum = 0; for (let i = 0; i < N; i++) degSum += nb[i].length;
+            const meanDeg = degSum / N;
+            // place threshold mark: beta_c = GAMMA/meanDeg, slider max 0.05
+            const betaC = GAMMA / meanDeg;
+            document.querySelector('.mark').style.left = (betaC / 0.05 * 100).toFixed(1) + '%';
+
+            let beta = 0.022, dist = 0, vacc = 0, running = true;
+            const state = new Int8Array(N);   // 0 S, 1 I, 2 R
+            let everInf = 0, peak = 0;
+            const curve = [], sir = [];
+            const mark = new Uint8Array(N);
+
+            function reset() {
+                state.fill(0); everInf = 0; peak = 0; curve.length = 0; sir.length = 0;
+                // vaccinate
+                const nv = Math.floor(vacc * N); const idx = [...Array(N).keys()];
+                for (let k = 0; k < nv; k++) { const r = k + ((Math.random() * (N - k)) | 0);[idx[k], idx[r]] = [idx[r], idx[k]]; state[idx[k]] = 2; }
+                // seed
+                let seeded = 0; let guard = 0;
+                while (seeded < 4 && guard++ < 2000) { const i = (Math.random() * N) | 0; if (state[i] === 0) { state[i] = 1; everInf++; seeded++; } }
+            }
+            reset();
+
+            function step() {
+                const pre = []; for (let i = 0; i < N; i++) if (state[i] === 1) pre.push(i);
+                mark.fill(0);
+                const eb = beta * (1 - dist);
+                for (const i of pre) { for (const j of nb[i]) { if (state[j] === 0 && Math.random() < eb) mark[j] = 1; } }
+                for (const i of pre) { if (Math.random() < GAMMA) state[i] = 2; }
+                for (let j = 0; j < N; j++) { if (mark[j]) { state[j] = 1; everInf++; } }
+                let s = 0, inf = 0, r = 0; for (let i = 0; i < N; i++) { const v = state[i]; if (v === 0) s++; else if (v === 1) inf++; else r++; }
+                if (inf > peak) peak = inf;
+                curve.push(inf); if (curve.length > MAXT) curve.shift();
+                sir.push([s, inf, r]); if (sir.length > MAXT) sir.shift();
+            }
+
+            function fit(cv, h) {
+                const dpr = devicePixelRatio || 1; const w = cv.clientWidth;
+                cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
+                const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return [g, w, h];
+            }
+            const netCv = document.getElementById('cNet'), curCv = document.getElementById('cCurve'), sirCv = document.getElementById('cSir');
+            const COL = ['#46527a', '#ff5e57', '#5fae9e'];
+
+            function drawNet() {
+                const [g, w, h] = fit(netCv, 440);
+                g.clearRect(0, 0, w, h);
+                const m = 20, sx = w - 2 * m, sy = h - 2 * m;
+                g.lineWidth = 0.5; g.strokeStyle = 'rgba(120,134,170,0.10)';
+                for (let k = 0; k < edges.length; k += 2) {
+                    const i = edges[k], j = edges[k + 1];
+                    g.beginPath(); g.moveTo(m + px[i] * sx, m + py[i] * sy); g.lineTo(m + px[j] * sx, m + py[j] * sy); g.stroke();
+                }
+                for (let i = 0; i < N; i++) {
+                    const st = state[i];
+                    g.fillStyle = COL[st]; const rad = st === 1 ? 3.0 : 2.1;
+                    g.beginPath(); g.arc(m + px[i] * sx, m + py[i] * sy, rad, 0, 7); g.fill();
+                }
+            }
+            function drawCurve() {
+                const [g, w, h] = fit(curCv, 150);
+                g.clearRect(0, 0, w, h);
+                if (curve.length < 2) return;
+                const yMax = Math.max(peak, 8) * 1.1;
+                const X = i => i / (MAXT - 1) * (w - 6) + 3, Y = v => h - 8 - v / yMax * (h - 16);
+                g.beginPath(); curve.forEach((v, i) => { i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)); });
+                g.lineTo(X(curve.length - 1), h); g.lineTo(X(0), h); g.closePath();
+                g.fillStyle = 'rgba(255,94,87,0.16)'; g.fill();
+                g.beginPath(); curve.forEach((v, i) => { i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)); });
+                g.strokeStyle = '#ff5e57'; g.lineWidth = 1.5; g.stroke();
+            }
+            function drawSir() {
+                const [g, w, h] = fit(sirCv, 150);
+                g.clearRect(0, 0, w, h);
+                if (sir.length < 2) return;
+                const X = i => i / (MAXT - 1) * (w - 6) + 3;
+                // stacked: S bottom, I middle, R top (fractions of N)
+                const layer = (pick, col) => {
+                    g.beginPath();
+                    for (let i = 0; i < sir.length; i++) { const y = h - (sir[i][0] + (pick >= 1 ? sir[i][1] : 0) + (pick >= 2 ? sir[i][2] : 0)) / N * h; i ? g.lineTo(X(i), y) : g.moveTo(X(i), y); }
+                    // close along baseline of previous layer
+                    for (let i = sir.length - 1; i >= 0; i--) { const y = pick === 0 ? h : h - (sir[i][0] + (pick >= 2 ? sir[i][1] : 0)) / N * h; g.lineTo(X(i), y); }
+                    g.closePath(); g.fillStyle = col; g.fill();
+                };
+                // draw R (full) then I then S so stacking reads; simpler: paint cumulative bands
+                // band S
+                g.beginPath(); for (let i = 0; i < sir.length; i++) { const y = h - sir[i][0] / N * h; i ? g.lineTo(X(i), y) : g.moveTo(X(i), y); } g.lineTo(X(sir.length - 1), h); g.lineTo(X(0), h); g.closePath(); g.fillStyle = 'rgba(70,82,122,0.55)'; g.fill();
+                // band S+I
+                g.beginPath(); for (let i = 0; i < sir.length; i++) { const y = h - (sir[i][0] + sir[i][1]) / N * h; i ? g.lineTo(X(i), y) : g.moveTo(X(i), y); } for (let i = sir.length - 1; i >= 0; i--) { const y = h - sir[i][0] / N * h; g.lineTo(X(i), y); } g.closePath(); g.fillStyle = 'rgba(255,94,87,0.7)'; g.fill();
+                // band S+I+R (rest)
+                g.beginPath(); for (let i = 0; i < sir.length; i++) { const y = h - (sir[i][0] + sir[i][1] + sir[i][2]) / N * h; i ? g.lineTo(X(i), y) : g.moveTo(X(i), y); } for (let i = sir.length - 1; i >= 0; i--) { const y = h - (sir[i][0] + sir[i][1]) / N * h; g.lineTo(X(i), y); } g.closePath(); g.fillStyle = 'rgba(95,174,158,0.55)'; g.fill();
+            }
+
+            const badge = document.getElementById('badge'), story = document.getElementById('story');
+            const rR0 = document.getElementById('rR0'), rA = document.getElementById('rActive'), rT = document.getElementById('rTotal'), rP = document.getElementById('rPeak');
+            const lblB = document.getElementById('lblB'), lblD = document.getElementById('lblD'), lblV = document.getElementById('lblV');
+            const stories = {
+                sub: 'R₀ が 1 を下回り、感染は数人で打ち消えて消える。隣に伝わる前に回復してしまうため、流行は立ち上がらない。',
+                edge: 'R₀ が 1 の縁。火種が消えるか燃え広がるかは紙一重で、結果が試行ごとに大きくぶれる ── 臨界のゆらぎだ。',
+                sup: 'R₀ が 1 を大きく超え、感染が集団全体へ燃え広がる。距離確保で接触を削るか、ワクチンで燃料を間引けば、同じ感染力でも流行は止められる。'
+            };
+            let lastCls = '';
+            function paint() {
+                let s = 0, inf = 0, r = 0; for (let i = 0; i < N; i++) { const v = state[i]; if (v === 0) s++; else if (v === 1) inf++; else r++; }
+                const R0 = beta * (1 - dist) / GAMMA * meanDeg;
+                const cls = R0 < 0.95 ? 'sub' : (R0 < 1.4 ? 'edge' : 'sup');
+                const col = cls === 'sub' ? '#5fae9e' : (cls === 'edge' ? '#e0a64e' : '#ff5e57');
+                const txt = cls === 'sub' ? '収束 / sub-threshold' : (cls === 'edge' ? '臨界近傍 / near-threshold' : '大流行 / supercritical');
+                badge.textContent = '— ' + txt; badge.style.color = col; badge.style.borderColor = col; badge.style.background = col + '1a';
+                rR0.textContent = R0.toFixed(2); rR0.style.color = col;
+                rA.textContent = (inf / N * 100).toFixed(1) + '%';
+                rT.textContent = (everInf / N * 100).toFixed(0) + '%';
+                rP.textContent = (peak / N * 100).toFixed(0) + '%';
+                lblB.style.color = col;
+                if (cls !== lastCls) { lastCls = cls; story.innerHTML = '<b>いま見えていること:</b> ' + stories[cls]; const b = story.querySelector('b'); if (b) b.style.color = col; }
+            }
+
+            let acc = 0, last = performance.now();
+            function loop(now) {
+                const dt = now - last; last = now;
+                if (running) { acc += dt; while (acc >= 70) { step(); acc -= 70; } }
+                drawNet(); drawCurve(); drawSir(); paint();
+                requestAnimationFrame(loop);
+            }
+            const sB = document.getElementById('sB'), sD = document.getElementById('sD'), sV = document.getElementById('sV');
+            sB.addEventListener('input', e => { beta = +e.target.value; lblB.textContent = beta.toFixed(3); });
+            sD.addEventListener('input', e => { dist = +e.target.value; lblD.textContent = Math.round(dist * 100) + '%'; });
+            sV.addEventListener('input', e => { vacc = +e.target.value; lblV.textContent = Math.round(vacc * 100) + '%'; });
+            document.getElementById('bPlay').addEventListener('click', e => { running = !running; e.target.textContent = running ? '⏸ pause' : '▶ play'; last = performance.now(); });
+            document.getElementById('bReset').addEventListener('click', reset);
+
+            for (let i = 0; i < 40; i++) step();
+            requestAnimationFrame(loop);
+        })();
+    </script>
+</body>
+
+</html>

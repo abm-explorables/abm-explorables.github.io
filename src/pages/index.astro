@@ -8,6 +8,8 @@ const home = base + '/';
 const about = base + '/about/';
 const whyabm = base + '/why-abm/';
 const demo = base + '/cases/cont-bouchaud/';
+const epidemic = base + '/cases/epidemic/';
+const traffic = base + '/cases/traffic/';
 ---
 
 <Base title="ABM Explorables — 金融の複雑系を、自分の手で" bare={true}>
@@ -45,6 +47,16 @@ const demo = base + '/cases/cont-bouchaud/';
                 <span class="case-t">群衆行動 — Herding</span>
                 <span class="case-cite">Cont &amp; Bouchaud, 2000 · <i>Herd behavior and aggregate fluctuations in financial markets</i></span>
                 <span class="case-d">連動する売り買いが群れをなすと、なぜ正規分布では説明できない暴落が生まれるのか</span>
+            </a>
+            <a class="case" href={epidemic}>
+                <span class="case-t">感染の閾値 — Network SIR</span>
+                <span class="case-cite">接触ネットワーク上の SIR · <i>Kermack &amp; McKendrick</i>, 1927</span>
+                <span class="case-d">感染力をほんの少し上げるだけで、なぜ被害は比例ではなく、ある一点で跳ね上がるのか</span>
+            </a>
+            <a class="case" href={traffic}>
+                <span class="case-t">幻の渋滞 — Phantom Jam</span>
+                <span class="case-cite">Bando et al., 1995 · <i>Optimal Velocity Model</i>（杉山ら 2008 が実車で実証）</span>
+                <span class="case-d">事故も合流もない一本道で、なぜ車を増やすだけで原因のない渋滞が生まれるのか</span>
             </a>
         </nav>
         <footer class="site-foot">ABM Explorables</footer>

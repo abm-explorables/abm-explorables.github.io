@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幻の渋滞 — Phantom Traffic Jam</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spectral:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --panel: #111733;
+            --panel2: #0c1226;
+            --line: #222a47;
+            --text: #e7eaf4;
+            --muted: #828aa8;
+            --dim: #586079;
+            --fast: #5b9fd6;
+            --mid: #e0a64e;
+            --jam: #ff5e57;
+            --accent: #5b7fd6;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Spectral", Georgia, serif;
+            -webkit-font-smoothing: antialiased
+        }
+
+        .wrap {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 54px 28px 80px
+        }
+
+        .eyebrow {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 11px;
+            letter-spacing: .32em;
+            text-transform: uppercase;
+            color: var(--dim)
+        }
+
+        h1 {
+            font-family: "Fraunces", serif;
+            font-weight: 900;
+            font-size: clamp(34px, 5.4vw, 58px);
+            line-height: 1.02;
+            margin: .28em 0 .18em;
+            letter-spacing: -.015em
+        }
+
+        h1 em {
+            font-style: italic;
+            color: var(--jam)
+        }
+
+        .lede {
+            font-size: 18px;
+            line-height: 1.62;
+            color: #c6cad9;
+            max-width: 62ch;
+            font-weight: 300
+        }
+
+        .lede b {
+            color: var(--text);
+            font-weight: 500
+        }
+
+        .card {
+            background: linear-gradient(180deg, var(--panel), var(--panel2));
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            margin-top: 34px;
+            box-shadow: 0 30px 80px -40px #000;
+            overflow: hidden
+        }
+
+        .bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--line);
+            flex-wrap: wrap
+        }
+
+        .badge {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            padding: 7px 13px;
+            border-radius: 999px;
+            border: 1px solid;
+            transition: color .35s, border-color .35s, background .35s;
+            white-space: nowrap
+        }
+
+        .reads {
+            display: flex;
+            gap: 26px;
+            flex-wrap: wrap
+        }
+
+        .read {
+            font-family: "IBM Plex Mono", monospace;
+            text-align: right
+        }
+
+        .read .k {
+            font-size: 10px;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+            color: var(--dim)
+        }
+
+        .read .v {
+            font-size: 21px;
+            font-weight: 600;
+            margin-top: 2px;
+            font-variant-numeric: tabular-nums
+        }
+
+        .stage {
+            display: flex;
+            gap: 0;
+            flex-wrap: wrap
+        }
+
+        .net {
+            position: relative;
+            flex: 1 1 460px;
+            min-width: 300px;
+            border-right: 1px solid var(--line)
+        }
+
+        .net canvas {
+            display: block;
+            width: 100%;
+            height: auto
+        }
+
+        .hint {
+            position: absolute;
+            left: 14px;
+            bottom: 12px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 10.5px;
+            color: var(--muted)
+        }
+
+        .right {
+            flex: 1 1 380px;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column
+        }
+
+        .plot {
+            flex: 1;
+            padding: 14px 16px 6px;
+            border-bottom: 1px solid var(--line)
+        }
+
+        .plot:last-child {
+            border-bottom: none
+        }
+
+        .plot h3 {
+            margin: 0 0 4px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 10.5px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-weight: 500
+        }
+
+        .plot canvas {
+            display: block;
+            width: 100%;
+            height: auto
+        }
+
+        .plot .sub {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 9.5px;
+            color: var(--dim);
+            margin-top: 3px
+        }
+
+        .controls {
+            padding: 22px 22px 8px;
+            border-top: 1px solid var(--line);
+            background: #080c16
+        }
+
+        .crow {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-bottom: 18px;
+            flex-wrap: wrap
+        }
+
+        .clabel {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 12px;
+            color: var(--muted);
+            width: 240px;
+            min-width: 180px
+        }
+
+        .clabel b {
+            color: var(--text);
+            font-weight: 600
+        }
+
+        .clabel .val {
+            color: var(--accent);
+            transition: color .35s
+        }
+
+        .slidewrap {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+            height: 34px
+        }
+
+        .track {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #26408a 0%, #3a3a52 48%, #5a3a3a 56%, #7a2f2f 100%)
+        }
+
+        .track.flat {
+            background: #2a3350
+        }
+
+        .mark {
+            position: absolute;
+            top: 6px;
+            width: 2px;
+            height: 22px;
+            background: var(--jam);
+            left: 51%
+        }
+
+        .mark span {
+            position: absolute;
+            top: -19px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 9.5px;
+            letter-spacing: .05em;
+            color: var(--jam);
+            white-space: nowrap
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 34px;
+            background: transparent;
+            margin: 0;
+            cursor: grab
+        }
+
+        input[type=range]:active {
+            cursor: grabbing
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--text);
+            border: 3px solid var(--bg);
+            margin-top: 8px;
+            box-shadow: 0 2px 8px #000
+        }
+
+        input[type=range]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--text);
+            border: 3px solid var(--bg);
+            box-shadow: 0 2px 8px #000
+        }
+
+        .btns {
+            display: flex;
+            gap: 10px;
+            padding: 4px 0 18px
+        }
+
+        button {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 12px;
+            letter-spacing: .04em;
+            color: var(--text);
+            background: #141a2c;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 9px 16px;
+            cursor: pointer;
+            transition: background .2s, border-color .2s
+        }
+
+        button:hover {
+            background: #1b2236;
+            border-color: #374063
+        }
+
+        .read-out {
+            margin-top: 30px;
+            font-size: 16.5px;
+            line-height: 1.65;
+            color: #c0c4d2;
+            max-width: 64ch;
+            font-weight: 300;
+            min-height: 3.3em
+        }
+
+        .read-out b {
+            color: var(--text);
+            font-weight: 500;
+            transition: color .35s
+        }
+
+        .foot {
+            margin-top: 26px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 11.5px;
+            line-height: 1.7;
+            color: var(--dim);
+            max-width: 70ch
+        }
+
+        .foot b {
+            color: var(--muted);
+            font-weight: 500
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="eyebrow">Agent-Based Models · 03</div>
+        <h1>渋滞には必ず<br><em>原因がある</em>？</h1>
+        <p class="lede">事故、合流、ボトルネック ──
+            渋滞には理由があるはず、と誰もが思う。<b>でも、何の障害もない一本道でも渋滞は生まれる。</b>各ドライバーは前の車との距離を見て加減速しているだけ。下のスライダーで車を増やしてみてほしい。ある密度を超えた瞬間に、原因のない停止波が立ち上がる。
+        </p>
+
+        <div class="card">
+            <div class="bar">
+                <div class="badge" id="badge">— 自由流 / free flow</div>
+                <div class="reads">
+                    <div class="read">
+                        <div class="k">平均速度</div>
+                        <div class="v" id="rSpeed">100%</div>
+                    </div>
+                    <div class="read">
+                        <div class="k">流量(相対)</div>
+                        <div class="v" id="rFlow">0</div>
+                    </div>
+                    <div class="read">
+                        <div class="k">停止中の車</div>
+                        <div class="v" id="rJam">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stage">
+                <div class="net">
+                    <canvas id="cRing"></canvas>
+                    <div class="hint">車は時計回り。赤=停止 → 青=最高速</div>
+                </div>
+                <div class="right">
+                    <div class="plot">
+                        <h3>空間 × 時間 — 渋滞は後ろへ流れる</h3>
+                        <canvas id="cSpace"></canvas>
+                        <div class="sub">横=道路一周 / 縦=時間(下へ進む)。赤い帯が右上へ傾く=渋滞が車と逆向きに伝播</div>
+                    </div>
+                    <div class="plot">
+                        <h3>平均速度の推移</h3>
+                        <canvas id="cSpeed"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="crow">
+                    <div class="clabel"><b>交通密度</b><br><span style="color:var(--dim)">道路上の車の数</span> = <span class="val"
+                            id="lblN">24</span></div>
+                    <div class="slidewrap">
+                        <div class="track"></div>
+                        <div class="mark"><span>渋滞の閾値</span></div>
+                        <input type="range" id="sN" min="14" max="54" step="1" value="24">
+                    </div>
+                </div>
+                <div class="crow">
+                    <div class="clabel"><b>反応の鈍さ</b><br><span style="color:var(--dim)">小さいほど鈍い→不安定</span> = <span
+                            id="lblA" style="color:var(--muted)">1.0</span></div>
+                    <div class="slidewrap">
+                        <div class="track flat"></div>
+                        <input type="range" id="sA" min="0.4" max="2.5" step="0.05" value="1.0">
+                    </div>
+                </div>
+                <div class="btns">
+                    <button id="bPlay">⏸ pause</button>
+                    <button id="bReset">↺ reset</button>
+                </div>
+            </div>
+        </div>
+
+        <p class="read-out" id="story"><b>いま見えていること:</b> 密度が低く、全車が十分な車間を保って最高速で流れている。小さな乱れは前へ吸収され、渋滞には育たない。</p>
+
+        <p class="foot"><b>モデル:</b> リング道路上の Optimal Velocity Model (Bando et al. 1995)。各車は前車との車間 b に応じた最適速度 V(b)
+            へ向けて加減速するだけ ── 中央の管制も全体最適化も無い。車間が一様な流れは、密度が<b>臨界値</b>を超えると不安定になり、わずかな揺らぎが増幅して停止波(渋滞)になる。これも自由流 ↔
+            渋滞の相転移で、Cont-Bouchaud・感染閾値と同じ臨界現象だ。渋滞は車の進行方向と<b>逆向き</b>に伝播する。杉山ら(2008)は、障害物のない円形コースを実車で走らせ、この「幻の渋滞」を世界で初めて実験的に再現した。エージェント型の交通シミュレーション(MATSim
+            等)は実際の都市計画で運用されている。</p>
+    </div>
+
+    <script>
+        (() => {
+            const L = 100, VMAX = 2.0, BC = 2.0, DT = 0.15, MAXT = 480;
+            const TH = Math.tanh(BC), DEN = 1 + TH;
+            const Vopt = b => VMAX * (Math.tanh(b - BC) + TH) / DEN;
+
+            let Ncars = 24, a = 1.0, running = true;
+            let x = [], v = [];
+            const speedHist = [];
+            function reset() {
+                x = []; v = []; const gap = L / Ncars, ve = Math.max(0, Vopt(gap));
+                for (let i = 0; i < Ncars; i++) { x.push(i * gap); v.push(ve); }
+                x[0] += 0.6;                       // tiny perturbation seeds the instability
+                speedHist.length = 0;
+                // clear space-time canvas
+                if (stG) { stG.fillStyle = '#0a0e1a'; stG.fillRect(0, 0, stCanvas.clientWidth, stH); }
+            }
+
+            function step() {
+                const ord = [...Array(Ncars).keys()].sort((p, q) => x[p] - x[q]);
+                const nv = new Array(Ncars);
+                for (let k = 0; k < Ncars; k++) {
+                    const i = ord[k], ah = ord[(k + 1) % Ncars];
+                    let gap = x[ah] - x[i]; if (gap <= 0) gap += L;
+                    let val = v[i] + a * (Vopt(gap) - v[i]) * DT;
+                    if (val < 0) val = 0;
+                    nv[i] = val;
+                }
+                for (let i = 0; i < Ncars; i++) { v[i] = nv[i]; x[i] = (x[i] + v[i] * DT) % L; }
+                let sum = 0; for (let i = 0; i < Ncars; i++)sum += v[i];
+                speedHist.push(sum / Ncars / VMAX); if (speedHist.length > MAXT) speedHist.shift();
+            }
+
+            function fit(cv, h) {
+                const dpr = devicePixelRatio || 1; const w = cv.clientWidth;
+                cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
+                const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return [g, w, h];
+            }
+
+            // speed -> color (red stopped -> amber -> blue fast)
+            function lerp(a, b, t) { return a + (b - a) * t; }
+            function hexToRgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+            const C0 = hexToRgb('#ff5e57'), C1 = hexToRgb('#e0a64e'), C2 = hexToRgb('#5b9fd6');
+            function speedColor(t) {
+                t = Math.max(0, Math.min(1, t)); let r, g, b;
+                if (t < 0.5) { const u = t / 0.5; r = lerp(C0[0], C1[0], u); g = lerp(C0[1], C1[1], u); b = lerp(C0[2], C1[2], u); }
+                else { const u = (t - 0.5) / 0.5; r = lerp(C1[0], C2[0], u); g = lerp(C1[1], C2[1], u); b = lerp(C1[2], C2[2], u); }
+                return `rgb(${r | 0},${g | 0},${b | 0})`;
+            }
+
+            const ringCv = document.getElementById('cRing'), spCv = document.getElementById('cSpace'), spdCv = document.getElementById('cSpeed');
+
+            function drawRing() {
+                const [g, w, h] = fit(ringCv, 360);
+                g.clearRect(0, 0, w, h);
+                const cx = w / 2, cy = h / 2, Rr = Math.min(w, h) / 2 - 26;
+                g.strokeStyle = '#1b2236'; g.lineWidth = 16; g.beginPath(); g.arc(cx, cy, Rr, 0, 7); g.stroke();
+                for (let i = 0; i < Ncars; i++) {
+                    const ang = (x[i] / L) * Math.PI * 2 - Math.PI / 2;
+                    const px = cx + Math.cos(ang) * Rr, py = cy + Math.sin(ang) * Rr;
+                    g.fillStyle = speedColor(v[i] / VMAX);
+                    g.beginPath(); g.arc(px, py, 4.2, 0, 7); g.fill();
+                }
+                // direction arrow
+                g.fillStyle = '#586079'; g.font = '10px "IBM Plex Mono"'; g.textAlign = 'center';
+                g.fillText('▸ 進行', cx, cy - 2);
+            }
+
+            // space-time strip with self-scroll
+            let stG = null, stCanvas = spCv, stH = 160, stW = 0, rowAcc = 0;
+            function initSpace() { const r = fit(spCv, stH); stG = r[0]; stW = r[1]; stG.fillStyle = '#0a0e1a'; stG.fillRect(0, 0, stW, stH); }
+            function spaceRow() {
+                if (!stG) return;
+                stG.drawImage(spCv, 0, 0, spCv.width, spCv.height, 0, 1, stW, stH); // shift down 1px
+                stG.fillStyle = '#0a0e1a'; stG.fillRect(0, 0, stW, 1);
+                for (let i = 0; i < Ncars; i++) {
+                    const xb = (x[i] / L) * stW;
+                    stG.fillStyle = speedColor(v[i] / VMAX);
+                    stG.fillRect(xb - 1.2, 0, 2.4, 1);
+                }
+            }
+            function drawSpeed() {
+                const [g, w, h] = fit(spdCv, 120);
+                g.clearRect(0, 0, w, h);
+                if (speedHist.length < 2) return;
+                const X = i => i / (MAXT - 1) * (w - 6) + 3, Y = t => h - 6 - t * (h - 12);
+                g.strokeStyle = '#2a3350'; g.lineWidth = 1; g.beginPath(); g.moveTo(3, Y(1)); g.lineTo(w - 3, Y(1)); g.stroke();
+                g.beginPath(); speedHist.forEach((t, i) => { i ? g.lineTo(X(i), Y(t)) : g.moveTo(X(i), Y(t)); });
+                g.lineTo(X(speedHist.length - 1), h); g.lineTo(X(0), h); g.closePath();
+                g.fillStyle = 'rgba(91,159,214,0.13)'; g.fill();
+                g.beginPath(); speedHist.forEach((t, i) => { i ? g.lineTo(X(i), Y(t)) : g.moveTo(X(i), Y(t)); });
+                g.strokeStyle = '#5b9fd6'; g.lineWidth = 1.5; g.stroke();
+            }
+
+            const badge = document.getElementById('badge'), story = document.getElementById('story');
+            const rS = document.getElementById('rSpeed'), rF = document.getElementById('rFlow'), rJ = document.getElementById('rJam');
+            const lblN = document.getElementById('lblN'), lblA = document.getElementById('lblA');
+            const stories = {
+                free: '密度が低く、全車が十分な車間を保って最高速で流れている。小さな乱れは前へ吸収され、渋滞には育たない。',
+                crit: '臨界の縁。一部の車が減速し始め、揺らぎが消えずに残る。停止波が生まれるかどうかの境目だ。',
+                jam: '原因のない停止波が立ち上がった。誰もぶつかっておらず障害物も無いのに、車が逆向きに流れる赤い帯ができている ── 相互作用だけから生まれる渋滞だ。'
+            };
+            let lastCls = '';
+            function paint() {
+                let sum = 0, minV = VMAX, jam = 0;
+                for (let i = 0; i < Ncars; i++) { sum += v[i]; if (v[i] < minV) minV = v[i]; if (v[i] < 0.2 * VMAX) jam++; }
+                const avg = sum / Ncars;
+                const cls = minV > 0.7 * VMAX ? 'free' : (minV < 0.25 * VMAX ? 'jam' : 'crit');
+                const col = cls === 'free' ? '#5b9fd6' : (cls === 'crit' ? '#e0a64e' : '#ff5e57');
+                const txt = cls === 'free' ? '自由流 / free flow' : (cls === 'crit' ? '臨界近傍 / near-critical' : '渋滞 / stop-and-go');
+                badge.textContent = '— ' + txt; badge.style.color = col; badge.style.borderColor = col; badge.style.background = col + '1a';
+                rS.textContent = (avg / VMAX * 100).toFixed(0) + '%'; rS.style.color = col;
+                rF.textContent = ((Ncars / L) * avg * 40).toFixed(0);
+                rJ.textContent = jam; rJ.style.color = jam > 0 ? '#ff5e57' : '#e7eaf4';
+                lblN.style.color = col;
+                if (cls !== lastCls) { lastCls = cls; story.innerHTML = '<b>いま見えていること:</b> ' + stories[cls]; const b = story.querySelector('b'); if (b) b.style.color = col; }
+            }
+
+            let acc = 0, last = performance.now();
+            function loop(now) {
+                const dt = now - last; last = now;
+                if (running) { acc += dt; let n = 0; while (acc >= 24 && n < 4) { step(); acc -= 24; n++; rowAcc++; if (rowAcc >= 2) { spaceRow(); rowAcc = 0; } } }
+                drawRing(); drawSpeed(); paint();
+                requestAnimationFrame(loop);
+            }
+            const sN = document.getElementById('sN'), sA = document.getElementById('sA');
+            sN.addEventListener('input', e => { Ncars = +e.target.value; lblN.textContent = Ncars; reset(); });
+            sA.addEventListener('input', e => { a = +e.target.value; lblA.textContent = a.toFixed(1); });
+            document.getElementById('bPlay').addEventListener('click', e => { running = !running; e.target.textContent = running ? '⏸ pause' : '▶ play'; last = performance.now(); });
+            document.getElementById('bReset').addEventListener('click', reset);
+
+            initSpace();
+            reset();
+            for (let i = 0; i < 60; i++)step();
+            requestAnimationFrame(loop);
+        })();
+    </script>
+</body>
+
+</html>
