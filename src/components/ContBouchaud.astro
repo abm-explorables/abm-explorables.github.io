@@ -12,7 +12,7 @@
         <div class="badge" id="badge">— 安定 / sub-critical</div>
         <div class="reads">
             <div class="read">
-                <div class="k">巨大クラスタ</div>
+                <div class="k">最大クラスタ</div>
                 <div class="v" id="rGiant">0%</div>
             </div>
             <div class="read">
@@ -20,7 +20,7 @@
                 <div class="v" id="rKurt">0.0</div>
             </div>
             <div class="read">
-                <div class="k">最大変動 / 600</div>
+                <div class="k">最大リターン（直近600）</div>
                 <div class="v" id="rMax">0.0%</div>
             </div>
         </div>
@@ -54,7 +54,7 @@
             </div>
         </div>
         <div class="crow">
-            <div class="clabel"><b>群れの活性</b> a<br><span style="color:var(--dim)">取引する確率</span> = <span id="lblA"
+            <div class="clabel"><b>取引の起こりやすさ</b> a<br><span style="color:var(--dim)">取引する確率</span> = <span id="lblA"
                     class="val" style="color:var(--muted)">0.15</span></div>
             <div class="slidewrap">
                 <div class="track" style="background:#2a3042"></div>
@@ -73,7 +73,7 @@
 <p class="foot"><b>モデル:</b> Cont &amp; Bouchaud (2000), <i>Herd behavior and aggregate fluctuations in financial
         markets</i>. N=360 のエージェントを毎ステップ確率 c/N で連結 → 連結成分（クラスタ）が一括で買い／売り／静観する。総需要 = Σ(クラスタ規模 × 行動)。c が
     <b>パーコレーション閾値 1</b> を超えると巨大クラスタが出現し、稀にそれが一斉に動いて市場を吹き飛ばす ── これがべき乗則の裾、つまりテールリスクの起源。半導体の楽観シナリオに全員が張る状況は「c
-    を上げる」現実側の一例にすぎない。需給そのものはモデルに入っていない。</p>
+    を上げる」現実側の一例にすぎない。ファンダメンタルズ（企業価値や金利）はモデルに入っていない。</p>
 
 <style>
     h1 {
@@ -455,7 +455,7 @@
         const REGIMES = {
             sub: { cls: 'sub', col: '#5a86d6', txt: '安定 / sub-critical' },
             near: { cls: 'near', col: '#e0a64e', txt: '臨界近傍 / near-critical' },
-            sup: { cls: 'sup', col: '#ff5e57', txt: '群衆支配 / super-critical' }
+            sup: { cls: 'sup', col: '#ff5e57', txt: '超臨界 / super-critical' }
         };
         function regime(gf) {
             if (gf < 0.08) return REGIMES.sub;
@@ -465,7 +465,7 @@
         const stories = {
             sub: 'クラスタは小さく分断され、無数の独立な売り買いが打ち消し合う。リターンはほぼ正規分布。暴落は起きない。',
             near: '巨大クラスタが生まれ始めた。分布の裾が太り出し、たまに大きな一撃が混じる ── 平穏に見えて、市場は崖の縁に近づいている。',
-            sup: '市場が一つの群れに支配されている。普段は静かでも、その群れが一斉に動いた瞬間に価格が吹き飛ぶ。これがテールリスクの爆発 ── 正規分布が決して許さない暴落が、構造から生まれる。'
+            sup: '市場が一つの群れに支配されている。普段は静かでも、その群れが一斉に動いた瞬間に価格が吹き飛ぶ。これがテールリスク ── 正規分布ではまず起こりえない規模の暴落が、構造から生まれる。'
         };
 
         function drawNet() {
