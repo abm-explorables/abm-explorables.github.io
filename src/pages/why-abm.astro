@@ -29,6 +29,11 @@ const demo = base + '/cases/cont-bouchaud/';
 
         <p class="invite">だからこそ、ここに書いたことも鵜呑みにはしないでほしい。スライダーを動かし、群れをすこしずつ膨らませながら、思いがけない何かが目の前で組み上がっていくさまを、ぜひ自分の手で確かめてみてください。</p>
 
+        <div class="bg-cap">
+            <span class="cap-a">背景 — 連鎖破綻のネットワークモデル</span>
+            <span class="cap-b">ひとつの破綻が、つながりを伝って網全体へ広がっていく。本文でいう「誰かが投げれば隣も投げる」連鎖を、そのまま走らせている。</span>
+        </div>
+
         <footer class="site-foot">ABM Explorables</footer>
     </article>
 </Base>
@@ -96,6 +101,32 @@ const demo = base + '/cases/cont-bouchaud/';
 
     .invite {
         margin-top: 2.2em
+    }
+
+    /* 末尾の背景モデル解説キャプション (HOME の延焼ラベルと同趣) */
+    .bg-cap {
+        margin-top: 3em;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        text-shadow: 0 1px 16px var(--bg)
+    }
+
+    .bg-cap .cap-a,
+    .bg-cap .cap-b {
+        display: block
+    }
+
+    .bg-cap .cap-a {
+        font-size: 13.5px;
+        color: var(--muted);
+        letter-spacing: .02em;
+        margin-bottom: 4px
+    }
+
+    .bg-cap .cap-b {
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--dim)
     }
 
     .site-foot {
