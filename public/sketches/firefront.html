@@ -69,8 +69,8 @@
   var TREE_DIM    = [42, 49, 66];        // #2a3142 quietest tree point
   var TREE_MID    = [58, 66, 86];        // mid navy-grey
   var TREE_BRIGHT = [75, 84, 104];       // #4b5468 brightest tree / shimmer peak
-  var RED         = [255, 94, 87];       // #ff5e57 active burning front
-  var AMBER       = [224, 166, 78];      // #e0a64e dying ember
+  var HOT         = [175, 205, 255];     // #afcdff 淡青 — 前線の最も熱い芯
+  var COOL        = [42, 74, 138];       // #2a4a8a 濃青 — 衰える熾
 
   var FIRE_MIN = 0.015;                  // glow below this renders as pure background
 
@@ -203,8 +203,8 @@
     var dr0 = TREE_DIM[0],    dg0 = TREE_DIM[1],    db0 = TREE_DIM[2];
     var dr1 = TREE_MID[0],    dg1 = TREE_MID[1],    db1 = TREE_MID[2];
     var br0 = TREE_BRIGHT[0], bg0 = TREE_BRIGHT[1], bb0 = TREE_BRIGHT[2];
-    var ar = AMBER[0], ag = AMBER[1], ab = AMBER[2];
-    var rr = RED[0],   rg = RED[1],   rb = RED[2];
+    var ar = COOL[0], ag = COOL[1], ab = COOL[2];
+    var rr = HOT[0],  rg = HOT[1],  rb = HOT[2];
 
     for (var i = 0; i < n; i++) {
       var g = glow[i];
@@ -214,12 +214,12 @@
         glow[i] = g;
         glowCount++;
         var r, gg, b;
-        if (g >= 0.5) {                 // fresh: amber -> red
+        if (g >= 0.5) {                 // fresh: 濃青 -> 淡青 (芯ほど熱い)
           var t = (g - 0.5) * 2;
           r = ar + (rr - ar) * t;
           gg = ag + (rg - ag) * t;
           b = ab + (rb - ab) * t;
-        } else {                         // dying: background -> amber
+        } else {                         // dying: background -> 濃青
           var u = g * 2;
           r = bgr + (ar - bgr) * u;
           gg = bgg + (ag - bgg) * u;
