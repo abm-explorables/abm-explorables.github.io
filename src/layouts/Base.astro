@@ -1,10 +1,9 @@
 ---
 // 共通 chrome: head / fonts / footer (spec.md Repo structure)
 // MDX page の layout frontmatter 経由でも、直接 import でも使えるよう両対応
+import SiteHeader from '../components/SiteHeader.astro';
 const props = Astro.props.frontmatter ?? Astro.props;
 const { title, bare = false } = props;
-// 全 case ページ共通の「ホームへ戻る」導線。BASE_URL 末尾スラッシュは環境で揺れるため正規化。
-const home = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
 ---
 
 <!DOCTYPE html>
@@ -22,9 +21,9 @@ const home = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
 </head>
 
 <body>
+    <SiteHeader transparent={bare} />
     {bare ? <slot /> : (
     <div class="wrap">
-        <a class="back" href={home}>← ABM Explorables</a>
         <slot />
         <footer class="site-foot">ABM Explorables</footer>
     </div>
@@ -68,16 +67,8 @@ const home = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
     .wrap {
         max-width: 1060px;
         margin: 0 auto;
-        padding: 54px 28px 80px
-    }
-
-    .back {
-        display: inline-block;
-        margin-bottom: 30px;
-        font-size: 14px;
-        color: var(--muted);
-        text-decoration: none;
-        transition: color .2s
+        /* 上余白は固定ヘッダー分を確保 */
+        padding: 96px 28px 80px
     }
 
     /* スタブ/コンテンツページ共通 (about, why-abm 等) */
@@ -94,10 +85,6 @@ const home = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
         font-weight: 300;
         color: var(--muted);
         max-width: 60ch
-    }
-
-    .back:hover {
-        color: var(--calm)
     }
 
     .site-foot {

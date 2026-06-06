@@ -4,26 +4,12 @@ import FireField from '../components/FireField.astro';
 
 // base path 配下で 404 させない (spec 001/003 の地雷)。BASE_URL の末尾スラッシュは環境で揺れるため正規化。
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const home = base + '/';
-const about = base + '/about/';
-const whyabm = base + '/why-abm/';
 const demo = base + '/cases/cont-bouchaud/';
 const epidemic = base + '/cases/epidemic/';
 const traffic = base + '/cases/traffic/';
 ---
 
 <Base title="ABM Explorables — 金融の複雑系を、自分の手で" bare={true}>
-    <header class="site-head" id="siteHead">
-        <div class="head-inner">
-            <a class="brand" href={home}>ABM Explorables</a>
-            <nav class="nav" aria-label="メイン">
-                <a href="#sims">Simulations</a>
-                <a href={whyabm}>Why ABM</a>
-                <a href={about}>About us</a>
-            </nav>
-        </div>
-    </header>
-
     <section class="hero">
         <FireField />
         <div class="hero-inner">
@@ -63,24 +49,6 @@ const traffic = base + '/cases/traffic/';
     </section>
 </Base>
 
-<script>
-    // 固定ヘッダー: hero の上では透明、スクロールして content に入ると solid navy 帯に
-    // (translucent な glassmorphism は避け、不透明な地で legibility を担保)
-    const head = document.getElementById('siteHead');
-    if (head) {
-        let ticking = false;
-        const apply = () => {
-            if (window.scrollY > window.innerHeight * 0.5) head.classList.add('scrolled');
-            else head.classList.remove('scrolled');
-            ticking = false;
-        };
-        window.addEventListener('scroll', () => {
-            if (!ticking) { requestAnimationFrame(apply); ticking = true; }
-        }, { passive: true });
-        apply();
-    }
-</script>
-
 <style>
     .hero {
         position: relative;
@@ -89,63 +57,6 @@ const traffic = base + '/cases/traffic/';
         display: flex;
         align-items: center;
         justify-content: center
-    }
-
-    /* header — 延焼の上に重ねて固定。スクロールで solid navy 帯に */
-    .site-head {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 50;
-        background: transparent;
-        border-bottom: 1px solid transparent;
-        transition: background .25s, border-color .25s
-    }
-
-    .site-head.scrolled {
-        background: var(--bg);
-        border-bottom: 1px solid var(--line)
-    }
-
-    .head-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 18px;
-        max-width: 1060px;
-        margin: 0 auto;
-        padding: 18px 28px;
-        flex-wrap: wrap
-    }
-
-    .brand {
-        font-family: "Spectral", Georgia, serif;
-        font-size: 16px;
-        font-weight: 500;
-        color: var(--text);
-        text-decoration: none;
-        letter-spacing: .01em;
-        text-shadow: 0 1px 16px var(--bg)
-    }
-
-    .nav {
-        display: flex;
-        gap: 24px;
-        align-items: baseline
-    }
-
-    .nav a {
-        font-family: "Spectral", Georgia, serif;
-        font-size: 15px;
-        color: var(--muted);
-        text-decoration: none;
-        transition: color .2s;
-        text-shadow: 0 1px 16px var(--bg)
-    }
-
-    .nav a:hover {
-        color: var(--calm)
     }
 
     /* 中央のキャッチコピー + 軽い説明 */

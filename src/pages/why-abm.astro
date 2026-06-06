@@ -1,11 +1,14 @@
 ---
 import Base from '../layouts/Base.astro';
+import ContagionField from '../components/ContagionField.astro';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const demo = base + '/cases/cont-bouchaud/';
 ---
 
-<Base title="Why ABM — ABM Explorables" bare={false}>
+<Base title="Why ABM — ABM Explorables" bare={true}>
+    <div class="why-bg" aria-hidden="true"><ContagionField /></div>
+
     <article class="essay">
         <h1 class="essay-h">Why ABM</h1>
         <p class="lede">市場を読み解くために使われてきた標準的な理論は、いざという時にこそ、いちばん大きく外れてしまう。その理由と、ABM（エージェント・ベース・モデル）がそこで何を変えるのかについては、一読する価値があるだろう。</p>
@@ -25,12 +28,27 @@ const demo = base + '/cases/cont-bouchaud/';
         <p>とはいえ、過大に持ち上げるつもりはない。ABM は明日の株価を言い当てるといった類のことは当然できない上、モデルを現実のデータに合わせるのは他と比べてもむしろ難しい。組み立てられるモデルは無数にあって、何をどのように使い分けるのかには結局のところ人の判断が要る。これは未来を告げる予言機ではなく、仕組みそのものを覗きこむために便利なツールであり、起こりうるシナリオを吹き込んで試すための風洞なのだ。そして、その正直さこそがいちばん大事なところだと思っている。よく当たると評判のモデルよりも、なぜそうなるのかを目の前で示してくれるモデルのほうが、結局はずっと遠くまで連れていってくれるはずだから。</p>
 
         <p class="invite">だからこそ、ここに書いたことも鵜呑みにはしないでほしい。スライダーを動かし、群れをすこしずつ膨らませながら、思いがけない何かが目の前で組み上がっていくさまを、ぜひ自分の手で確かめてみてください。</p>
+
+        <footer class="site-foot">ABM Explorables</footer>
     </article>
 </Base>
 
 <style>
+    /* contagion を全画面の固定背景に。長文の可読性のため控えめに沈め、本文は文字影で担保 */
+    .why-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        opacity: .5;
+        pointer-events: none
+    }
+
     .essay {
-        max-width: 40rem
+        position: relative;
+        z-index: 1;
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 124px 28px 90px
     }
 
     .essay-h {
@@ -38,7 +56,8 @@ const demo = base + '/cases/cont-bouchaud/';
         font-weight: 500;
         font-size: clamp(28px, 4vw, 36px);
         margin: 0 0 .5em;
-        letter-spacing: .005em
+        letter-spacing: .005em;
+        text-shadow: 0 1px 20px var(--bg), 0 1px 4px var(--bg)
     }
 
     .lede {
@@ -46,7 +65,8 @@ const demo = base + '/cases/cont-bouchaud/';
         line-height: 1.7;
         font-weight: 300;
         color: #c8cbd6;
-        margin: 0 0 1.8em
+        margin: 0 0 1.8em;
+        text-shadow: 0 1px 18px var(--bg), 0 1px 4px var(--bg)
     }
 
     .essay p {
@@ -54,7 +74,8 @@ const demo = base + '/cases/cont-bouchaud/';
         line-height: 1.95;
         font-weight: 300;
         color: #c2c6d2;
-        margin: 0 0 1.5em
+        margin: 0 0 1.5em;
+        text-shadow: 0 1px 18px var(--bg), 0 1px 4px var(--bg)
     }
 
     .essay p b {
@@ -75,5 +96,13 @@ const demo = base + '/cases/cont-bouchaud/';
 
     .invite {
         margin-top: 2.2em
+    }
+
+    .site-foot {
+        margin-top: 56px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        font-size: 13px;
+        color: var(--dim)
     }
 </style>

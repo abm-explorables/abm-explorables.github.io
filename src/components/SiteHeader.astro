@@ -1,0 +1,97 @@
+---
+// 全ページ共通の固定ヘッダー (Base 経由で全ページに出る)。
+// transparent=true (bg を持つ bare ページ: HOME / Why ABM) は最上部で透明、
+// スクロールで solid navy 帯に。transparent=false (通常コンテンツ) は常に solid。
+const { transparent = false } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const home = base + '/';
+const whyabm = base + '/why-abm/';
+const about = base + '/about/';
+const sims = base + '/#sims';
+---
+
+<header class={transparent ? 'site-head at-top' : 'site-head'} id="siteHead" data-transparent={transparent ? 'true' : 'false'}>
+    <div class="head-inner">
+        <a class="brand" href={home}>ABM Explorables</a>
+        <nav class="nav" aria-label="メイン">
+            <a href={sims}>Simulations</a>
+            <a href={whyabm}>Why ABM</a>
+            <a href={about}>About us</a>
+        </nav>
+    </div>
+</header>
+
+<style>
+    .site-head {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+        transition: background .25s, border-color .25s
+    }
+
+    .site-head.at-top {
+        background: transparent;
+        border-bottom-color: transparent
+    }
+
+    .head-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        max-width: 1060px;
+        margin: 0 auto;
+        padding: 18px 28px;
+        flex-wrap: wrap
+    }
+
+    .brand {
+        font-family: "Spectral", Georgia, serif;
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--text);
+        text-decoration: none;
+        letter-spacing: .01em;
+        text-shadow: 0 1px 16px var(--bg)
+    }
+
+    .nav {
+        display: flex;
+        gap: 24px;
+        align-items: baseline
+    }
+
+    .nav a {
+        font-family: "Spectral", Georgia, serif;
+        font-size: 15px;
+        color: var(--muted);
+        text-decoration: none;
+        transition: color .2s;
+        text-shadow: 0 1px 16px var(--bg)
+    }
+
+    .nav a:hover {
+        color: var(--calm)
+    }
+</style>
+
+<script>
+    // transparent ページのみ: 最上部で at-top(透明)、スクロールで solid に
+    const head = document.getElementById('siteHead');
+    if (head && head.dataset.transparent === 'true') {
+        let ticking = false;
+        const apply = () => {
+            if (window.scrollY > window.innerHeight * 0.5) head.classList.remove('at-top');
+            else head.classList.add('at-top');
+            ticking = false;
+        };
+        window.addEventListener('scroll', () => {
+            if (!ticking) { requestAnimationFrame(apply); ticking = true; }
+        }, { passive: true });
+        apply();
+    }
+</script>
