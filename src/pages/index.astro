@@ -30,11 +30,12 @@ const demo = base + '/cases/cont-bouchaud/';
                 <span>それなのに市場全体は誰の予想も超えていく</span>
                 <span class="last">その瞬間を、ぜひ自分の手で再現してみてほしい</span>
             </h1>
-            <p class="hero-sub">
-                <span class="sub-a">森林火災モデル</span>
-                <span class="sub-b">ー臨界に達した系では、たった一つの火花が野全体を駆け抜ける</span>
-            </p>
         </div>
+
+        <figcaption class="flame-cap">
+            <span class="cap-a">森林火災モデル</span>
+            <span class="cap-b">臨界に達した系では、たった一つの火花が野全体を駆け抜ける</span>
+        </figcaption>
     </section>
 
     <section class="below" id="sims">
@@ -168,24 +169,35 @@ const demo = base + '/cases/cont-bouchaud/';
         font-weight: 300
     }
 
-    .hero-sub {
-        margin: 34px auto 0;
-        font-size: 15px;
-        line-height: 1.85;
-        font-weight: 300;
-        color: var(--muted);
-        text-shadow: 0 1px 18px var(--bg), 0 1px 4px var(--bg)
+    /* 延焼の作品ラベル — hero 左下隅にひっそり置く(中央のコピーと競合させない) */
+    .flame-cap {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 26px;
+        z-index: 1;
+        max-width: 1060px;
+        margin: 0 auto;
+        padding: 0 28px;
+        font-size: 12.5px;
+        line-height: 1.65;
+        color: var(--dim);
+        text-shadow: 0 1px 14px var(--bg);
+        pointer-events: none
     }
 
-    .hero-sub .sub-a,
-    .hero-sub .sub-b {
+    .flame-cap .cap-a,
+    .flame-cap .cap-b {
         display: block
     }
 
-    .hero-sub .sub-a {
-        color: var(--text);
-        font-weight: 400;
-        margin-bottom: 3px
+    .flame-cap .cap-a {
+        color: var(--muted);
+        letter-spacing: .02em
+    }
+
+    .flame-cap .cap-b {
+        max-width: 48ch
     }
 
     /* 下段 — Simulations */
