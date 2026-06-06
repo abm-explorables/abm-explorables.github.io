@@ -1,6 +1,6 @@
 # spec 003: HOME 追加とサイト IA 再編
 
-Status: draft — 参照抽出は受領済み(notes/003-reference-extraction.md)。残 input: HOME メッセージ実文言と signature moment の方向(下記)
+Status: HOME 実装・deploy 済み(2026-06-07, c63a3b5)。HTTP 検証 OK(/ と /cases/cont-bouchaud/ ともに 200、アセット 404 ゼロ)。残: Yuito の実機目視、炎の輝度マッピング live tuning、青=安定との意味論 最終確認
 前提資料: specs/001-v0-kickoff.md, specs/002-restyle-narrative.md, notes/ui-de-ai-research.md
 
 ## Goal
@@ -82,11 +82,11 @@ hero には不採用だが将来の事例ページで使う意図。public/sketc
 3. HOME 実装 → Yuito レビュー(gate)
 4. deploy + 404 全数チェック(001 acceptance の再実行)
 
-## Acceptance criteria(暫定 — input 後に追記)
-- [ ] / で HOME、/cases/cont-bouchaud/ でデモが表示される
-- [ ] base path 配下で 404 ゼロ(リンク・アセット全数)
-- [ ] デモの sim 挙動が移動後も不変
-- [ ] HOME のメッセージ・ビジュアルが Yuito レビュー通過
+## Acceptance criteria
+- [x] / で HOME、/cases/cont-bouchaud/ でデモが表示される(本番 200 確認)
+- [x] base path 配下で 404 ゼロ(リンク・アセット全数 — HTTP 検証済み。BASE_URL 末尾スラッシュ欠落バグを修正)
+- [x] デモの sim 挙動が移動後も不変(ContBouchaud.astro 無改変で移設)
+- [ ] HOME のメッセージ・ビジュアルが Yuito 実機レビュー通過(炎の見え方・hero 文字の可読性)
 
 ## Checklist
 - [ ] HOME の「かっこいい」が Yuito の言葉で要件化されているか(AI の解釈で埋めていないか)
