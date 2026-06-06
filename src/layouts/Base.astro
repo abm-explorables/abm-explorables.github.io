@@ -80,6 +80,22 @@ const home = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
         transition: color .2s
     }
 
+    /* スタブ/コンテンツページ共通 (about, why-abm 等) */
+    .page-h {
+        font-family: "Spectral", Georgia, serif;
+        font-weight: 500;
+        font-size: 30px;
+        margin: 0 0 .4em
+    }
+
+    .page-p {
+        font-size: 17px;
+        line-height: 1.7;
+        font-weight: 300;
+        color: var(--muted);
+        max-width: 60ch
+    }
+
     .back:hover {
         color: var(--calm)
     }

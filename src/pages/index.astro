@@ -6,6 +6,7 @@ import FireField from '../components/FireField.astro';
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const home = base + '/';
 const about = base + '/about/';
+const whyabm = base + '/why-abm/';
 const demo = base + '/cases/cont-bouchaud/';
 ---
 
@@ -15,7 +16,8 @@ const demo = base + '/cases/cont-bouchaud/';
             <a class="brand" href={home}>ABM Explorables</a>
             <nav class="nav" aria-label="メイン">
                 <a href="#sims">Simulations</a>
-                <a class="soon-link" href={about}>About <span class="soon">準備中</span></a>
+                <a href={whyabm}>Why ABM</a>
+                <a href={about}>About us</a>
             </nav>
         </div>
     </header>
@@ -39,8 +41,9 @@ const demo = base + '/cases/cont-bouchaud/';
         <h2 class="sims-h">Simulations</h2>
         <nav class="cases" aria-label="事例">
             <a class="case" href={demo}>
-                <span class="case-t">臨界点 — Cont-Bouchaud</span>
-                <span class="case-d">連動する群れが増えると、なぜ正規分布では説明できない暴落が生まれるのか</span>
+                <span class="case-t">群衆行動 — Herding</span>
+                <span class="case-cite">Cont &amp; Bouchaud, 2000 · <i>Herd behavior and aggregate fluctuations in financial markets</i></span>
+                <span class="case-d">連動する売り買いが群れをなすと、なぜ正規分布では説明できない暴落が生まれるのか</span>
             </a>
         </nav>
         <footer class="site-foot">ABM Explorables</footer>
@@ -132,11 +135,6 @@ const demo = base + '/cases/cont-bouchaud/';
         color: var(--calm)
     }
 
-    .soon {
-        font-size: 11px;
-        color: var(--dim)
-    }
-
     /* 中央のキャッチコピー + 軽い説明 */
     .hero-inner {
         position: relative;
@@ -176,7 +174,7 @@ const demo = base + '/cases/cont-bouchaud/';
         line-height: 1.85;
         font-weight: 300;
         color: var(--muted);
-        text-shadow: 0 1px 16px var(--bg)
+        text-shadow: 0 1px 18px var(--bg), 0 1px 4px var(--bg)
     }
 
     .hero-sub .sub-a,
@@ -185,7 +183,9 @@ const demo = base + '/cases/cont-bouchaud/';
     }
 
     .hero-sub .sub-a {
-        color: var(--dim)
+        color: var(--text);
+        font-weight: 400;
+        margin-bottom: 3px
     }
 
     /* 下段 — Simulations */
@@ -233,11 +233,23 @@ const demo = base + '/cases/cont-bouchaud/';
         font-size: 21px;
         font-weight: 500;
         color: var(--text);
-        margin-bottom: 5px
+        margin-bottom: 4px
     }
 
     .case:hover .case-t {
         color: var(--calm)
+    }
+
+    .case-cite {
+        display: block;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--dim);
+        margin-bottom: 8px
+    }
+
+    .case-cite i {
+        font-style: italic
     }
 
     .case-d {
