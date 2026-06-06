@@ -1,6 +1,6 @@
 # ローンチ文面ドラフト (2026-06-07)
 
-URL: https://yuitokyouni.github.io/abm-explorables/
+URL: https://abm-explorables.github.io/
 **拡散の単位 = money shot**: 各デモの「スライダーを動かす→創発が起きる」5〜10秒の画面録画(GIF/動画)。テキストは添えるフックで、本体は動画。投稿前に各デモの録画を1本ずつ用意する。
 
 ---
@@ -11,7 +11,7 @@ URL: https://yuitokyouni.github.io/abm-explorables/
 > 金融市場を「群衆」として一人ずつ組み立てると、誰も書き込んでいないはずの暴落がひとりでに立ち上がる。
 >
 > スライダーを動かして、その瞬間を自分の手で再現できる explorable を作りました。
-> https://yuitokyouni.github.io/abm-explorables/
+> https://abm-explorables.github.io/
 
 ### デモ別(それぞれ GIF を添付、別日に小出し)
 **Herding**
@@ -47,7 +47,7 @@ URL: https://yuitokyouni.github.io/abm-explorables/
 > The point is something equilibrium models erase by construction: crashes, contagion, and jams are interaction effects, not external shocks. So instead of assuming the aggregate, you build the agents and let it happen.
 >
 > All client-side (Astro + canvas, no backend). Japanese-first, but the visuals carry. Feedback on the models and the physics welcome.
-> https://yuitokyouni.github.io/abm-explorables/
+> https://abm-explorables.github.io/
 
 note: 平日 US 午前(JST 23時前後)投稿。最初の数件のコメントに丁寧に返すと残りやすい。
 

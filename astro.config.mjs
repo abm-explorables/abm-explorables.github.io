@@ -5,8 +5,9 @@ import mdx from '@astrojs/mdx';
 
 // https://astro.build/config
 export default defineConfig({
-  // GitHub Pages project page — base path 必須 (spec.md Task 3)
-  site: 'https://yuitokyouni.github.io',
-  base: '/abm-explorables',
+  // org ページ (abm-explorables.github.io) = root 配信なので base は '/'。
+  // 内部リンク・アセット・OG は import.meta.env.BASE_URL 経由なので追従する。
+  site: 'https://abm-explorables.github.io',
+  base: '/',
   integrations: [mdx()]
 });
