@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>延焼 — forest-fire criticality</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #0b0d12;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #caption {
+    position: fixed;
+    left: 20px;
+    bottom: 16px;
+    font-family: 'Spectral', serif;
+    font-size: 13px;
+    color: #5b6276;
+    letter-spacing: 0.02em;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="field"></canvas>
+<div id="caption">延焼 — 臨界密度では、ひとつの火花が野を焼き尽くす</div>
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------
+     Drossel–Schwabl forest-fire model, rendered as a soft light field.
+
+     Message: trees grow slowly everywhere; most sparks fizzle, but near
+     the critical tree density a single strike lights a front that sweeps
+     the whole field. Long calm, rare system-wide cascades.
+
+     Tuning knobs
+     ------------------------------------------------------------------ */
+  var CELL_PX                 = 4;        // CSS px per lattice cell (soft-blurred away, never seen as a grid)
+  var GROWTH_FRACTION         = 0.0005;   // trees seeded per frame as a fraction of cell count (slow growth p)
+  var LIGHTNING_PER_FRAME     = 0.025;    // P(a spark strikes a random cell this frame) — small rate f
+  var FIRE_SWEEPS_PER_FRAME   = 2;        // rings the burning front advances per frame -> visible traveling wave
+  var PREFILL_DENSITY         = 0.25;     // starting tree density, comfortably below the percolation threshold
+  var GLOW_FADE_S             = 0.40;     // e-folding time of the ember afterglow (front dies to dark in ~1 s)
+  var SHIMMER_FADE_S          = 0.60;     // e-folding time of the faint twinkle a freshly grown tree leaves
+  var SHIMMER_GAIN            = 0.55;     // how far a new tree brightens toward TREE_BRIGHT before settling
+  var MAIN_BLUR_PX            = 1.1;      // gentle blur on the base field so cells melt into a continuous wash
+  var BLOOM_PX                = 7.0;      // halo radius around live fire (drawn only when something is burning)
+  var BLOOM_GAIN              = 0.85;     // bloom intensity multiplier
+
+  /* 8-neighbour (Moore) spread -> site-percolation threshold ~0.407, so the
+     field reads spacious and calm while still able to span end to end. */
+
+  /* Locked palette ------------------------------------------------------ */
+  var BG          = [11, 13, 18];        // #0b0d12 background / empty cell
+  var TREE_DIM    = [42, 49, 66];        // #2a3142 quietest tree point
+  var TREE_MID    = [58, 66, 86];        // mid navy-grey
+  var TREE_BRIGHT = [75, 84, 104];       // #4b5468 brightest tree / shimmer peak
+  var RED         = [255, 94, 87];       // #ff5e57 active burning front
+  var AMBER       = [224, 166, 78];      // #e0a64e dying ember
+
+  var FIRE_MIN = 0.015;                  // glow below this renders as pure background
+
+  /* ------------------------------------------------------------------
+     State
+     ------------------------------------------------------------------ */
+  var canvas = document.getElementById('field');
+  var ctx = canvas.getContext('2d');
+
+  var off = document.createElement('canvas');     // base field, lattice resolution
+  var offCtx = off.getContext('2d');
+  var fire = document.createElement('canvas');     // fire-only layer for the bloom pass
+  var fireCtx = fire.getContext('2d');
+
+  var W = 0, H = 0, N = 0;
+  var state;            // Uint8Array  — 0 empty, 1 tree
+  var burning;          // Uint8Array  — dedupe flag for cells in the active front
+  var glow;             // Float32Array — fire intensity 0..1 (front + decaying ember)
+  var shimmer;          // Float32Array — growth twinkle 0..1
+  var noise;            // Float32Array — static per-cell brightness variation for organic texture
+  var qCur, qNext;      // Int32Array  — current / next burning ring
+  var cntCur = 0, cntNext = 0;
+
+  var imgMain, px32Main;   // base-field ImageData (ABGR)
+  var imgFire, px32Fire;   // fire-layer ImageData (ABGR, alpha = glow)
+  var lastT = 0;
+
+  function packABGR(r, g, b) {
+    return (255 << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255);
+  }
+
+  function init() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var cssW = window.innerWidth;
+    var cssH = window.innerHeight;
+
+    canvas.width = Math.max(1, Math.round(cssW * dpr));
+    canvas.height = Math.max(1, Math.round(cssH * dpr));
+
+    W = Math.max(8, Math.ceil(cssW / CELL_PX));
+    H = Math.max(8, Math.ceil(cssH / CELL_PX));
+    N = W * H;
+
+    state   = new Uint8Array(N);
+    burning = new Uint8Array(N);
+    glow    = new Float32Array(N);
+    shimmer = new Float32Array(N);
+    noise   = new Float32Array(N);
+    qCur    = new Int32Array(N);
+    qNext   = new Int32Array(N);
+    cntCur = 0;
+    cntNext = 0;
+
+    off.width = W;  off.height = H;
+    fire.width = W; fire.height = H;
+    imgMain = offCtx.createImageData(W, H);
+    px32Main = new Uint32Array(imgMain.data.buffer);
+    imgFire = fireCtx.createImageData(W, H);
+    px32Fire = new Uint32Array(imgFire.data.buffer);
+
+    for (var i = 0; i < N; i++) {
+      noise[i] = Math.random();
+      state[i] = Math.random() < PREFILL_DENSITY ? 1 : 0;
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     Simulation
+     ------------------------------------------------------------------ */
+  function ignite(idx) {
+    if (state[idx] === 1 && burning[idx] === 0) {
+      burning[idx] = 1;
+      glow[idx] = 1;                 // leading edge lights up the instant it catches
+      qCur[cntCur++] = idx;
+    }
+  }
+
+  function grow() {
+    var attempts = Math.round(GROWTH_FRACTION * N);
+    for (var k = 0; k < attempts; k++) {
+      var idx = (Math.random() * N) | 0;
+      if (state[idx] === 0) {
+        state[idx] = 1;
+        shimmer[idx] = 1;            // faint birth twinkle
+      }
+    }
+  }
+
+  function strike() {
+    if (Math.random() < LIGHTNING_PER_FRAME) {
+      ignite((Math.random() * N) | 0);   // mostly lands on empty ground and fizzles
+    }
+  }
+
+  /* Advance the front by one ring: every burning cell burns down to empty
+     and lights its tree neighbours, which become the next ring. */
+  function sweep() {
+    var n = cntCur;
+    cntNext = 0;
+    for (var i = 0; i < n; i++) {
+      var idx = qCur[i];
+      burning[idx] = 0;
+      state[idx] = 0;
+      glow[idx] = 1;
+      var x = idx % W;
+      var y = (idx / W) | 0;
+      var xl = x > 0, xr = x < W - 1, yu = y > 0, yd = y < H - 1;
+      var nb;
+      if (xl)        { nb = idx - 1;     if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+      if (xr)        { nb = idx + 1;     if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+      if (yu)        { nb = idx - W;     if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+      if (yd)        { nb = idx + W;     if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+      if (xl && yu)  { nb = idx - W - 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+      if (xr && yu)  { nb = idx - W + 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+      if (xl && yd)  { nb = idx + W - 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+      if (xr && yd)  { nb = idx + W + 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+    }
+    var tmp = qCur; qCur = qNext; qNext = tmp;
+    cntCur = cntNext;
+  }
+
+  /* ------------------------------------------------------------------
+     Rendering — quiet navy field, fire as a soft glowing front
+     ------------------------------------------------------------------ */
+  function render(glowDecay, shimmerDecay) {
+    var n = N;
+    var glowCount = 0;
+
+    var bgr = BG[0], bgg = BG[1], bgb = BG[2];
+    var dr0 = TREE_DIM[0],    dg0 = TREE_DIM[1],    db0 = TREE_DIM[2];
+    var dr1 = TREE_MID[0],    dg1 = TREE_MID[1],    db1 = TREE_MID[2];
+    var br0 = TREE_BRIGHT[0], bg0 = TREE_BRIGHT[1], bb0 = TREE_BRIGHT[2];
+    var ar = AMBER[0], ag = AMBER[1], ab = AMBER[2];
+    var rr = RED[0],   rg = RED[1],   rb = RED[2];
+
+    for (var i = 0; i < n; i++) {
+      var g = glow[i];
+
+      if (g > FIRE_MIN) {
+        g *= glowDecay;
+        glow[i] = g;
+        glowCount++;
+        var r, gg, b;
+        if (g >= 0.5) {                 // fresh: amber -> red
+          var t = (g - 0.5) * 2;
+          r = ar + (rr - ar) * t;
+          gg = ag + (rg - ag) * t;
+          b = ab + (rb - ab) * t;
+        } else {                         // dying: background -> amber
+          var u = g * 2;
+          r = bgr + (ar - bgr) * u;
+          gg = bgg + (ag - bgg) * u;
+          b = bgb + (ab - bgb) * u;
+        }
+        px32Main[i] = packABGR(r | 0, gg | 0, b | 0);
+        px32Fire[i] = ((Math.min(1, g) * 255) | 0) << 24 | ((b | 0) << 16) | ((gg | 0) << 8) | (r | 0);
+        continue;
+      }
+      if (g !== 0) glow[i] = 0;
+      px32Fire[i] = 0;
+
+      if (state[i] === 1) {
+        var nz = noise[i];
+        var tr = dr0 + (dr1 - dr0) * nz;
+        var tg = dg0 + (dg1 - dg0) * nz;
+        var tb = db0 + (db1 - db0) * nz;
+        var s = shimmer[i];
+        if (s > 0.004) {
+          s *= shimmerDecay;
+          shimmer[i] = s;
+          var k = s * SHIMMER_GAIN;
+          tr += (br0 - tr) * k;
+          tg += (bg0 - tg) * k;
+          tb += (bb0 - tb) * k;
+        } else if (s !== 0) {
+          shimmer[i] = 0;
+        }
+        px32Main[i] = packABGR(tr | 0, tg | 0, tb | 0);
+      } else {
+        px32Main[i] = packABGR(bgr, bgg, bgb);
+      }
+    }
+
+    offCtx.putImageData(imgMain, 0, 0);
+
+    var cw = canvas.width, ch = canvas.height;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = true;
+    ctx.filter = MAIN_BLUR_PX > 0 ? 'blur(' + MAIN_BLUR_PX + 'px)' : 'none';
+    ctx.drawImage(off, 0, 0, cw, ch);
+    ctx.filter = 'none';
+
+    if (glowCount > 0) {
+      fireCtx.putImageData(imgFire, 0, 0);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = BLOOM_GAIN;
+      ctx.imageSmoothingEnabled = true;
+      ctx.filter = 'blur(' + BLOOM_PX + 'px)';
+      ctx.drawImage(fire, 0, 0, cw, ch);
+      ctx.filter = 'none';
+      ctx.restore();
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     Main loop
+     ------------------------------------------------------------------ */
+  function frame(t) {
+    var dt = lastT ? (t - lastT) / 1000 : 1 / 60;
+    lastT = t;
+    if (dt > 0.25) dt = 0.25;          // tab was hidden; don't dump decay
+
+    grow();
+    strike();
+    for (var s = 0; s < FIRE_SWEEPS_PER_FRAME; s++) {
+      if (cntCur === 0) break;
+      sweep();
+    }
+
+    render(Math.exp(-dt / GLOW_FADE_S), Math.exp(-dt / SHIMMER_FADE_S));
+    requestAnimationFrame(frame);
+  }
+
+  var resizeTimer = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { lastT = 0; init(); }, 160);
+  });
+
+  init();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
