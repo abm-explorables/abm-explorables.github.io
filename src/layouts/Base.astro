@@ -1,0 +1,77 @@
+---
+// 共通 chrome: head / fonts / footer (spec.md Repo structure)
+// MDX page の layout frontmatter 経由でも、直接 import でも使えるよう両対応
+const { title } = Astro.props.frontmatter ?? Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spectral:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet" />
+</head>
+
+<body>
+    <div class="wrap">
+        <slot />
+        <footer class="site-foot">ABM Explorables</footer>
+    </div>
+</body>
+
+</html>
+
+<style is:global>
+    /* design tokens + ページ骨格。:root / html / body は scoped だと当たらないため global に置く */
+    :root {
+        --bg: #0b0d12;
+        --panel: #12151d;
+        --panel2: #0f121a;
+        --line: #222838;
+        --text: #e8e9ee;
+        --muted: #838aa0;
+        --dim: #5b6276;
+        --calm: #5a86d6;
+        /* sub-critical */
+        --warn: #e0a64e;
+        /* near-critical */
+        --crash: #ff5e57;
+        /* super-critical */
+        --gauss: #5a6172;
+    }
+
+    * {
+        box-sizing: border-box
+    }
+
+    html,
+    body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Spectral", Georgia, serif;
+        -webkit-font-smoothing: antialiased
+    }
+
+    .wrap {
+        max-width: 1060px;
+        margin: 0 auto;
+        padding: 54px 28px 80px
+    }
+
+    .site-foot {
+        margin-top: 60px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        letter-spacing: .12em;
+        color: var(--dim)
+    }
+</style>
