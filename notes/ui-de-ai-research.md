@@ -1,6 +1,6 @@
 # UI の「AIっぽさ」除去 — リサーチノート (2026-06-07)
 
-> restyle フェーズ(v0 では後回し)の一次資料。spec.md「UI / visual design は後回し」の後続作業用。
+> restyle フェーズ(v0 では後回し)の一次資料。specs/001-v0-kickoff.md「UI / visual design は後回し」の後続作業用。
 
 ## 1. AI生成UIの「tell」(シグナル強度順)
 
