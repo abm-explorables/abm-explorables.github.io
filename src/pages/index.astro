@@ -17,7 +17,6 @@ const demo = `${base}/cases/cont-bouchaud/`;
                 <span>それなのに市場全体は誰の予想も超えていく</span>
                 <span class="last">その瞬間を、ぜひ自分の手で再現してみてほしい</span>
             </h1>
-            <a class="enter" href={demo}>臨界点 — Cont-Bouchaud を動かす<span class="arr" aria-hidden="true">→</span></a>
         </div>
     </section>
 
@@ -41,7 +40,8 @@ const demo = `${base}/cases/cont-bouchaud/`;
         min-height: 100svh;
         overflow: hidden;
         display: flex;
-        align-items: flex-end
+        align-items: center;
+        justify-content: center
     }
 
     .hero-inner {
@@ -50,7 +50,8 @@ const demo = `${base}/cases/cont-bouchaud/`;
         max-width: 1060px;
         width: 100%;
         margin: 0 auto;
-        padding: 0 28px 64px
+        padding: 0 28px;
+        text-align: center
     }
 
     .hero-msg {
@@ -73,33 +74,6 @@ const demo = `${base}/cases/cont-bouchaud/`;
         margin-top: .5em;
         color: #c8cbd6;
         font-weight: 300
-    }
-
-    .enter {
-        display: inline-block;
-        margin-top: 30px;
-        font-family: "Spectral", Georgia, serif;
-        font-size: 16px;
-        color: var(--text);
-        text-decoration: none;
-        border-bottom: 1px solid var(--dim);
-        padding-bottom: 3px;
-        transition: color .2s, border-color .2s;
-        text-shadow: 0 1px 16px var(--bg)
-    }
-
-    .enter:hover {
-        color: var(--calm);
-        border-color: var(--calm)
-    }
-
-    .enter .arr {
-        margin-left: .5em;
-        transition: margin-left .2s
-    }
-
-    .enter:hover .arr {
-        margin-left: .85em
     }
 
     .below {

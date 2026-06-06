@@ -3,6 +3,8 @@
 // MDX page の layout frontmatter 経由でも、直接 import でも使えるよう両対応
 const props = Astro.props.frontmatter ?? Astro.props;
 const { title, bare = false } = props;
+// 全 case ページ共通の「ホームへ戻る」導線。BASE_URL 末尾スラッシュは環境で揺れるため正規化。
+const home = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
 ---
 
 <!DOCTYPE html>
@@ -22,6 +24,7 @@ const { title, bare = false } = props;
 <body>
     {bare ? <slot /> : (
     <div class="wrap">
+        <a class="back" href={home}>← ABM Explorables</a>
         <slot />
         <footer class="site-foot">ABM Explorables</footer>
     </div>
@@ -66,6 +69,19 @@ const { title, bare = false } = props;
         max-width: 1060px;
         margin: 0 auto;
         padding: 54px 28px 80px
+    }
+
+    .back {
+        display: inline-block;
+        margin-bottom: 30px;
+        font-size: 14px;
+        color: var(--muted);
+        text-decoration: none;
+        transition: color .2s
+    }
+
+    .back:hover {
+        color: var(--calm)
     }
 
     .site-foot {
