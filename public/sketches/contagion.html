@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>連鎖 — systemic default cascade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #0b0d12;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #caption {
+    position: fixed;
+    left: 20px;
+    bottom: 16px;
+    font-family: 'Spectral', serif;
+    font-size: 13px;
+    color: #5b6276;
+    letter-spacing: 0.02em;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="field"></canvas>
+<div id="caption">連鎖 — ひとつの破綻が、網の目を伝って全体を呑む</div>
+<script>
+(function () {
+  'use strict';
+
+  /* ==================================================================
+     Tuning knobs — the whole behaviour is shaped from here
+     ------------------------------------------------------------------
+     A node carries a LOAD and fails when load crosses its THRESHOLD.
+     Failing redistributes that load to neighbours as light pulses that
+     travel ALONG the edges over several frames, which can topple them
+     in turn. Two driving streams act on a slowly-charging field:
+       - a fast, weak FLICKER  -> ambient single-node sparks (mostly die)
+       - a slow, strong SHOCK  -> rarely lands on a charged web and a
+                                  giant cascade races across everything.
+     ================================================================== */
+  var TARGET_NODES      = 820;    // nodes laid out (spacing clamps 600..1200)
+  var K_NEIGHBORS       = 5;      // nearest neighbours linked per node (~3-5)
+  var POISSON_TIGHTNESS = 0.80;   // <1 packs the constellation tighter
+
+  var THRESH_MEAN       = 1.0;    // mean failure threshold (load units)
+  var THRESH_JITTER     = 0.08;   // per-node threshold spread (+/-)
+  var REDISTRIB         = 1.0;    // share of a failed node's load passed on (1 = conservative)
+  var DEPOSIT_DAMP      = 0.5;    // incoming load absorbed while a node recovers
+
+  var DRIVE_SITES       = 3;      // nodes that gain background stress each 1/60 s
+  var DRIVE_AMOUNT      = 0.007;  // stress added per site (load units)
+  var DRIVE_CEIL        = 0.985;  // drive alone never crosses threshold (no self-fire)
+
+  var FLICKER_INTERVAL_S= 1.3;    // ambient spark cadence
+  var FLICKER_BUMP      = 0.15;   // ambient spark strength (mostly fizzles)
+  var SHOCK_INTERVAL_S  = 16.0;   // mean cadence of a strong external shock
+  var SHOCK_JITTER      = 0.4;    // +/- randomisation of shock timing
+  var SHOCK_BUMP        = 0.50;   // strong shock strength (giant when web is charged)
+
+  var REFRACTORY_S      = 0.9;    // recovery time before a node may fail again
+  var LOAD_CAP_MULT     = 1.8;    // ceiling on stored load (x threshold)
+
+  var PULSE_PIXEL_SPEED = 300;    // light speed along edges (CSS px / sec)
+  var GLOW_FADE_S       = 0.5;    // e-folding of the red node afterglow (~1.5s)
+  var EDGE_FADE_S       = 0.6;    // e-folding of an edge's red trail
+
+  /* Locked palette — almost monochrome; red is rare and precious */
+  var BG          = '#0b0d12';
+  var NODE_LO     = [58, 65, 80];   // #3a4150 quiet dim node
+  var NODE_HI     = [91, 98, 118];  // #5b6276 slightly brighter quiet node
+  var EDGE_RGB    = [62, 72, 96];   // navy-grey hairline
+  var AMBER       = [224, 166, 78]; // #e0a64e warm high-load (subtle)
+  /* red #ff5e57 is written inline where the light lives */
+
+  /* ==================================================================
+     Canvas / DPR
+     ================================================================== */
+  var canvas = document.getElementById('field');
+  var ctx = canvas.getContext('2d');
+  var DPR = 1, CSSW = 0, CSSH = 0;
+
+  /* ---- network state (typed arrays) ---- */
+  var N = 0;
+  var nx, ny;          // Float32 node positions (CSS px)
+  var thresh, load;    // Float32 threshold + current load
+  var glow;            // Float32 red glow 0..1 per node
+  var refrac;          // Float32 refractory countdown (s)
+  var shade;           // Float32 per-node brightness variation 0..1
+  var degree;          // Int32  neighbour count per node
+
+  var E = 0;
+  var ea, eb;          // Int32 edge endpoints
+  var elen;            // Float32 edge length (px)
+  var eglow;           // Float32 edge red trail 0..1
+  var adjStart, adjNode, adjEdge; // CSR adjacency (node -> neighbours + edge id)
+
+  /* ---- travelling pulses (light running along an edge) ---- */
+  var MAXP = 0;
+  var pEdge, pTo, pT, pSpeed, pDir, pAmt; // pools
+  var nP = 0;
+
+  var fireList;        // Int32 scratch list of nodes failing this frame
+  var flickClock = 0, shockClock = 0, nextShock = SHOCK_INTERVAL_S;
+  var lastT = 0;
+
+  /* glow sprite for additive node/pulse halos */
+  var sprite = document.createElement('canvas');
+
+  /* ==================================================================
+     Layout — Poisson-disc (Bridson) then k-nearest-neighbour graph
+     ================================================================== */
+  function buildLayout() {
+    var area = CSSW * CSSH;
+    var r = Math.sqrt(area / TARGET_NODES) * POISSON_TIGHTNESS; // min spacing
+    var pts = poisson(r);
+    if (pts.length > 1200) pts.length = 1200;
+
+    N = pts.length;
+    nx = new Float32Array(N);
+    ny = new Float32Array(N);
+    for (var i = 0; i < N; i++) { nx[i] = pts[i][0]; ny[i] = pts[i][1]; }
+
+    knnEdges(r);
+
+    thresh = new Float32Array(N);
+    load   = new Float32Array(N);
+    glow   = new Float32Array(N);
+    refrac = new Float32Array(N);
+    shade  = new Float32Array(N);
+    fireList = new Int32Array(N);
+
+    for (i = 0; i < N; i++) {
+      thresh[i] = THRESH_MEAN + (Math.random() * 2 - 1) * THRESH_JITTER;
+      load[i]   = thresh[i] * 0.3 * Math.random();   // start cool
+      shade[i]  = Math.random();
+    }
+
+    MAXP = Math.max(256, E * 2);
+    pEdge  = new Int32Array(MAXP);
+    pTo    = new Int32Array(MAXP);
+    pT     = new Float32Array(MAXP);
+    pSpeed = new Float32Array(MAXP);
+    pDir   = new Int8Array(MAXP);
+    pAmt   = new Float32Array(MAXP);
+    nP = 0;
+    flickClock = 0; shockClock = 0; nextShock = SHOCK_INTERVAL_S;
+  }
+
+  /* Bridson Poisson-disc sampling over the screen rectangle */
+  function poisson(r) {
+    var k = 24;
+    var cell = r / Math.SQRT2;
+    var gw = Math.ceil(CSSW / cell), gh = Math.ceil(CSSH / cell);
+    var grid = new Int32Array(gw * gh).fill(-1);
+    var pts = [];
+    var active = [];
+
+    function gi(x, y) { return ((y / cell) | 0) * gw + ((x / cell) | 0); }
+    function ok(x, y) {
+      if (x < 0 || y < 0 || x >= CSSW || y >= CSSH) return false;
+      var cx = (x / cell) | 0, cy = (y / cell) | 0;
+      for (var yy = Math.max(0, cy - 2); yy <= Math.min(gh - 1, cy + 2); yy++)
+        for (var xx = Math.max(0, cx - 2); xx <= Math.min(gw - 1, cx + 2); xx++) {
+          var id = grid[yy * gw + xx];
+          if (id >= 0) {
+            var dx = pts[id][0] - x, dy = pts[id][1] - y;
+            if (dx * dx + dy * dy < r * r) return false;
+          }
+        }
+      return true;
+    }
+    function add(x, y) {
+      var id = pts.length; pts.push([x, y]);
+      grid[gi(x, y)] = id; active.push(id);
+    }
+
+    add(Math.random() * CSSW, Math.random() * CSSH);
+    while (active.length && pts.length < 1200) {
+      var ai = (Math.random() * active.length) | 0;
+      var p = pts[active[ai]];
+      var found = false;
+      for (var t = 0; t < k; t++) {
+        var ang = Math.random() * Math.PI * 2;
+        var rad = r * (1 + Math.random());
+        var x = p[0] + Math.cos(ang) * rad;
+        var y = p[1] + Math.sin(ang) * rad;
+        if (ok(x, y)) { add(x, y); found = true; break; }
+      }
+      if (!found) { active[ai] = active[active.length - 1]; active.pop(); }
+    }
+    return pts;
+  }
+
+  /* connect each node to its K nearest neighbours via a spatial grid */
+  function knnEdges(r) {
+    var cell = r * 2;
+    var gw = Math.max(1, Math.ceil(CSSW / cell)), gh = Math.max(1, Math.ceil(CSSH / cell));
+    var heads = new Int32Array(gw * gh).fill(-1);
+    var next = new Int32Array(N).fill(-1);
+    var cx = new Int32Array(N), cy = new Int32Array(N);
+    for (var i = 0; i < N; i++) {
+      var gx = Math.min(gw - 1, (nx[i] / cell) | 0);
+      var gy = Math.min(gh - 1, (ny[i] / cell) | 0);
+      cx[i] = gx; cy[i] = gy;
+      var c = gy * gw + gx; next[i] = heads[c]; heads[c] = i;
+    }
+
+    var seen = new Set();
+    var ea2 = [], eb2 = [];
+    var bestId = new Int32Array(K_NEIGHBORS);
+    var bestD = new Float64Array(K_NEIGHBORS);
+
+    for (i = 0; i < N; i++) {
+      for (var q = 0; q < K_NEIGHBORS; q++) { bestId[q] = -1; bestD[q] = Infinity; }
+      for (var yy = Math.max(0, cy[i] - 1); yy <= Math.min(gh - 1, cy[i] + 1); yy++)
+        for (var xx = Math.max(0, cx[i] - 1); xx <= Math.min(gw - 1, cx[i] + 1); xx++) {
+          for (var j = heads[yy * gw + xx]; j !== -1; j = next[j]) {
+            if (j === i) continue;
+            var dx = nx[j] - nx[i], dy = ny[j] - ny[i];
+            var d = dx * dx + dy * dy;
+            if (d < bestD[K_NEIGHBORS - 1]) {
+              var pos = K_NEIGHBORS - 1;
+              while (pos > 0 && bestD[pos - 1] > d) {
+                bestD[pos] = bestD[pos - 1]; bestId[pos] = bestId[pos - 1]; pos--;
+              }
+              bestD[pos] = d; bestId[pos] = j;
+            }
+          }
+        }
+      for (q = 0; q < K_NEIGHBORS; q++) {
+        var nb = bestId[q]; if (nb < 0) continue;
+        var a = i < nb ? i : nb, b = i < nb ? nb : i;
+        var key = a * 2000000 + b;
+        if (seen.has(key)) continue;
+        seen.add(key); ea2.push(a); eb2.push(b);
+      }
+    }
+
+    E = ea2.length;
+    ea = new Int32Array(E); eb = new Int32Array(E);
+    elen = new Float32Array(E); eglow = new Float32Array(E);
+    degree = new Int32Array(N);
+    for (i = 0; i < E; i++) {
+      ea[i] = ea2[i]; eb[i] = eb2[i];
+      var ddx = nx[ea[i]] - nx[eb[i]], ddy = ny[ea[i]] - ny[eb[i]];
+      elen[i] = Math.max(1, Math.sqrt(ddx * ddx + ddy * ddy));
+      degree[ea[i]]++; degree[eb[i]]++;
+    }
+    // CSR adjacency
+    adjStart = new Int32Array(N + 1);
+    for (i = 0; i < N; i++) adjStart[i + 1] = adjStart[i] + degree[i];
+    adjNode = new Int32Array(2 * E);
+    adjEdge = new Int32Array(2 * E);
+    var cur = adjStart.slice(0, N);
+    for (i = 0; i < E; i++) {
+      var u = ea[i], v = eb[i];
+      adjNode[cur[u]] = v; adjEdge[cur[u]] = i; cur[u]++;
+      adjNode[cur[v]] = u; adjEdge[cur[v]] = i; cur[v]++;
+    }
+  }
+
+  /* ==================================================================
+     Dynamics
+     ================================================================== */
+  function spawnPulse(edge, to, dir, amt) {
+    if (nP >= MAXP) return;
+    pEdge[nP] = edge; pTo[nP] = to; pT[nP] = 0;
+    pSpeed[nP] = PULSE_PIXEL_SPEED / elen[edge];
+    pDir[nP] = dir; pAmt[nP] = amt; nP++;
+  }
+
+  function fireNode(i) {
+    var deg = degree[i] || 1;
+    var give = REDISTRIB * load[i] / deg;   // conservative hand-off
+    load[i] = 0;
+    refrac[i] = REFRACTORY_S;
+    glow[i] = 1;
+    for (var p = adjStart[i]; p < adjStart[i + 1]; p++) {
+      var e = adjEdge[p];
+      var nb = adjNode[p];
+      var dir = (ea[e] === i) ? 1 : -1;    // travel from i toward nb
+      spawnPulse(e, nb, dir, give);
+    }
+  }
+
+  function deposit(nb, amt) {
+    load[nb] += (refrac[nb] > 0) ? amt * DEPOSIT_DAMP : amt;
+    var cap = thresh[nb] * LOAD_CAP_MULT;
+    if (load[nb] > cap) load[nb] = cap;
+  }
+
+  function stepPulses(dt) {
+    var w = 0;
+    var n = nP;
+    for (var r = 0; r < n; r++) {
+      var e = pEdge[r];
+      pT[r] += pSpeed[r] * dt;
+      eglow[e] = 1;
+      if (pT[r] >= 1) {
+        deposit(pTo[r], pAmt[r]);          // light arrived: pass the shock on
+      } else {
+        pEdge[w] = e; pTo[w] = pTo[r]; pT[w] = pT[r];
+        pSpeed[w] = pSpeed[r]; pDir[w] = pDir[r]; pAmt[w] = pAmt[r]; w++;
+      }
+    }
+    nP = w;
+  }
+
+  function bump(amount) {
+    var i = (Math.random() * N) | 0;
+    if (refrac[i] > 0) return;
+    load[i] += amount;          // may push past threshold -> caught by scan
+  }
+
+  function frameSim(dt) {
+    // 1. slow background charging — clamped so drive alone never fails a node
+    var driveScale = dt * 60;
+    for (var s = 0; s < DRIVE_SITES; s++) {
+      var i = (Math.random() * N) | 0;
+      if (refrac[i] > 0) continue;
+      var ceil = thresh[i] * DRIVE_CEIL;
+      var nl = load[i] + DRIVE_AMOUNT * driveScale;
+      load[i] = nl > ceil ? ceil : nl;
+    }
+
+    // 2. light in transit (deposits load on arrival)
+    stepPulses(dt);
+
+    // 3. ambient flicker — frequent, weak, usually dies locally
+    flickClock += dt;
+    while (flickClock >= FLICKER_INTERVAL_S) {
+      flickClock -= FLICKER_INTERVAL_S;
+      bump(FLICKER_BUMP);
+    }
+
+    // 4. rare strong shock — giant only if the web happens to be charged
+    shockClock += dt;
+    if (shockClock >= nextShock) {
+      shockClock = 0;
+      nextShock = SHOCK_INTERVAL_S * (1 + (Math.random() * 2 - 1) * SHOCK_JITTER);
+      bump(SHOCK_BUMP);
+    }
+
+    // 5. fail every node now over threshold (pulse arrivals, bumps)
+    var nf = 0;
+    for (i = 0; i < N; i++) {
+      if (refrac[i] <= 0 && load[i] >= thresh[i]) fireList[nf++] = i;
+    }
+    for (s = 0; s < nf; s++) fireNode(fireList[s]);
+
+    // 6. decay glows + refractory recovery
+    var gMul = Math.exp(-dt / GLOW_FADE_S);
+    var eMul = Math.exp(-dt / EDGE_FADE_S);
+    for (i = 0; i < N; i++) {
+      if (glow[i] > 0.001) glow[i] *= gMul; else glow[i] = 0;
+      if (refrac[i] > 0) { refrac[i] -= dt; if (refrac[i] < 0) refrac[i] = 0; }
+    }
+    for (var e = 0; e < E; e++) {
+      if (eglow[e] > 0.004) eglow[e] *= eMul; else eglow[e] = 0;
+    }
+  }
+
+  /* ==================================================================
+     Rendering
+     ================================================================== */
+  function makeSprite() {
+    var S = 64; sprite.width = S; sprite.height = S;
+    var g = sprite.getContext('2d');
+    var grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grad.addColorStop(0.0, 'rgba(255,94,87,0.95)');
+    grad.addColorStop(0.25, 'rgba(255,94,87,0.45)');
+    grad.addColorStop(1.0, 'rgba(255,94,87,0.0)');
+    g.fillStyle = grad; g.fillRect(0, 0, S, S);
+  }
+
+  function render() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, CSSW, CSSH);
+
+    // --- quiet edges: one faint batched stroke ---
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(' + EDGE_RGB[0] + ',' + EDGE_RGB[1] + ',' + EDGE_RGB[2] + ',0.07)';
+    ctx.beginPath();
+    for (var e = 0; e < E; e++) {
+      ctx.moveTo(nx[ea[e]], ny[ea[e]]);
+      ctx.lineTo(nx[eb[e]], ny[eb[e]]);
+    }
+    ctx.stroke();
+
+    // --- red edge trails (additive) ---
+    ctx.globalCompositeOperation = 'lighter';
+    for (e = 0; e < E; e++) {
+      var ge = eglow[e];
+      if (ge < 0.02) continue;
+      ctx.strokeStyle = 'rgba(255,94,87,' + (ge * 0.55).toFixed(3) + ')';
+      ctx.lineWidth = 0.8 + ge * 1.2;
+      ctx.beginPath();
+      ctx.moveTo(nx[ea[e]], ny[ea[e]]);
+      ctx.lineTo(nx[eb[e]], ny[eb[e]]);
+      ctx.stroke();
+    }
+
+    // --- travelling comets (additive) ---
+    for (var k = 0; k < nP; k++) {
+      var ed = pEdge[k];
+      var ax = nx[ea[ed]], ay = ny[ea[ed]], bx = nx[eb[ed]], by = ny[eb[ed]];
+      var t = pT[k];
+      var fx, fy, tx, ty;
+      if (pDir[k] === 1) { fx = ax; fy = ay; tx = bx; ty = by; }
+      else { fx = bx; fy = by; tx = ax; ty = ay; }
+      var hx = fx + (tx - fx) * t;          // comet head position
+      var hy = fy + (ty - fy) * t;
+      var tt = t - 0.22; if (tt < 0) tt = 0; // short tail behind it
+      var lx = fx + (tx - fx) * tt;
+      var ly = fy + (ty - fy) * tt;
+      ctx.strokeStyle = 'rgba(255,94,87,0.85)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(hx, hy); ctx.stroke();
+      var sz = 9;
+      ctx.drawImage(sprite, hx - sz, hy - sz, sz * 2, sz * 2);
+    }
+
+    // --- nodes (quiet dots, faint amber under high load) ---
+    ctx.globalCompositeOperation = 'source-over';
+    for (var i = 0; i < N; i++) {
+      var ld = load[i] / thresh[i];
+      if (ld > 1) ld = 1;
+      var warm = ld > 0.55 ? (ld - 0.55) / 0.45 : 0;
+      var bl = shade[i];
+      var br = NODE_LO[0] + (NODE_HI[0] - NODE_LO[0]) * bl;
+      var bg = NODE_LO[1] + (NODE_HI[1] - NODE_LO[1]) * bl;
+      var bb = NODE_LO[2] + (NODE_HI[2] - NODE_LO[2]) * bl;
+      var cr = br + (AMBER[0] - br) * warm * 0.55;
+      var cg = bg + (AMBER[1] - bg) * warm * 0.55;
+      var cb = bb + (AMBER[2] - bb) * warm * 0.55;
+      var rad = 1.3 + bl * 0.5 + warm * 0.5;
+      ctx.fillStyle = 'rgb(' + (cr | 0) + ',' + (cg | 0) + ',' + (cb | 0) + ')';
+      ctx.beginPath();
+      ctx.arc(nx[i], ny[i], rad, 0, 6.2832);
+      ctx.fill();
+    }
+
+    // --- failing nodes glow (additive halo) ---
+    ctx.globalCompositeOperation = 'lighter';
+    for (i = 0; i < N; i++) {
+      var gl = glow[i];
+      if (gl < 0.02) continue;
+      var sz2 = 6 + gl * 16;
+      ctx.globalAlpha = gl > 1 ? 1 : gl * 1.1;
+      if (ctx.globalAlpha > 1) ctx.globalAlpha = 1;
+      ctx.drawImage(sprite, nx[i] - sz2, ny[i] - sz2, sz2 * 2, sz2 * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* ==================================================================
+     Loop / resize
+     ================================================================== */
+  function frame(now) {
+    var dt = lastT ? (now - lastT) / 1000 : 1 / 60;
+    lastT = now;
+    if (dt > 0.1) dt = 0.1;     // tab was hidden: don't dump time
+    frameSim(dt);
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  function init() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    CSSW = window.innerWidth;
+    CSSH = window.innerHeight;
+    canvas.width = Math.max(1, Math.round(CSSW * DPR));
+    canvas.height = Math.max(1, Math.round(CSSH * DPR));
+    makeSprite();
+    buildLayout();
+  }
+
+  var resizeTimer = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(init, 180);
+  });
+
+  init();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
