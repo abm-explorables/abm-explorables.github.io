@@ -1,7 +1,8 @@
 ---
 // 共通 chrome: head / fonts / footer (spec.md Repo structure)
 // MDX page の layout frontmatter 経由でも、直接 import でも使えるよう両対応
-const { title } = Astro.props.frontmatter ?? Astro.props;
+const props = Astro.props.frontmatter ?? Astro.props;
+const { title, bare = false } = props;
 ---
 
 <!DOCTYPE html>
@@ -19,10 +20,12 @@ const { title } = Astro.props.frontmatter ?? Astro.props;
 </head>
 
 <body>
+    {bare ? <slot /> : (
     <div class="wrap">
         <slot />
         <footer class="site-foot">ABM Explorables</footer>
     </div>
+    )}
 </body>
 
 </html>

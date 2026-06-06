@@ -1,0 +1,172 @@
+---
+import Base from '../layouts/Base.astro';
+import FireField from '../components/FireField.astro';
+
+// base path 配下で 404 させない (spec 001/003 の地雷): 内部リンクは BASE_URL 経由。
+// BASE_URL は末尾スラッシュ有無が環境で揺れるため正規化してから連結する。
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const demo = `${base}/cases/cont-bouchaud/`;
+---
+
+<Base title="ABM Explorables — 金融の複雑系を、自分の手で" bare={true}>
+    <section class="hero">
+        <FireField />
+        <div class="hero-inner">
+            <h1 class="hero-msg">
+                <span>一人一人はごく単純な規則で動いているだけ</span>
+                <span>それなのに市場全体は誰の予想も超えていく</span>
+                <span class="last">その瞬間を、ぜひ自分の手で再現してみてほしい</span>
+            </h1>
+            <a class="enter" href={demo}>臨界点 — Cont-Bouchaud を動かす<span class="arr" aria-hidden="true">→</span></a>
+        </div>
+    </section>
+
+    <section class="below">
+        <p class="site-intro">市場を方程式ではなく群衆として組み立て直すと、一人ひとりの単純な売り買いから、暴落や熱狂がひとりでに立ち上がる。その様子をブラウザの中で走らせて、自分の手で確かめられる場所。</p>
+
+        <nav class="cases" aria-label="事例">
+            <a class="case" href={demo}>
+                <span class="case-t">臨界点 — Cont-Bouchaud</span>
+                <span class="case-d">連動する群れが増えると、なぜ正規分布では説明できない暴落が生まれるのか</span>
+            </a>
+        </nav>
+
+        <footer class="site-foot">ABM Explorables</footer>
+    </section>
+</Base>
+
+<style>
+    .hero {
+        position: relative;
+        min-height: 100svh;
+        overflow: hidden;
+        display: flex;
+        align-items: flex-end
+    }
+
+    .hero-inner {
+        position: relative;
+        z-index: 1;
+        max-width: 1060px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 0 28px 64px
+    }
+
+    .hero-msg {
+        margin: 0;
+        font-family: "Spectral", Georgia, serif;
+        font-weight: 400;
+        font-size: clamp(21px, 3.1vw, 37px);
+        line-height: 1.62;
+        letter-spacing: .01em;
+        color: var(--text);
+        /* 炎が稀に文字を横切っても読めるよう、グラデ装飾ではなく文字影で legibility を担保 */
+        text-shadow: 0 1px 24px var(--bg), 0 1px 5px var(--bg)
+    }
+
+    .hero-msg span {
+        display: block
+    }
+
+    .hero-msg .last {
+        margin-top: .5em;
+        color: #c8cbd6;
+        font-weight: 300
+    }
+
+    .enter {
+        display: inline-block;
+        margin-top: 30px;
+        font-family: "Spectral", Georgia, serif;
+        font-size: 16px;
+        color: var(--text);
+        text-decoration: none;
+        border-bottom: 1px solid var(--dim);
+        padding-bottom: 3px;
+        transition: color .2s, border-color .2s;
+        text-shadow: 0 1px 16px var(--bg)
+    }
+
+    .enter:hover {
+        color: var(--calm);
+        border-color: var(--calm)
+    }
+
+    .enter .arr {
+        margin-left: .5em;
+        transition: margin-left .2s
+    }
+
+    .enter:hover .arr {
+        margin-left: .85em
+    }
+
+    .below {
+        max-width: 1060px;
+        margin: 0 auto;
+        padding: 60px 28px 80px
+    }
+
+    .site-intro {
+        font-size: 18px;
+        line-height: 1.7;
+        font-weight: 300;
+        color: #c8cbd6;
+        max-width: 60ch;
+        margin: 0 0 44px
+    }
+
+    .cases {
+        display: flex;
+        flex-direction: column;
+        gap: 0
+    }
+
+    .case {
+        display: block;
+        padding: 22px 0;
+        border-top: 1px solid var(--line);
+        text-decoration: none;
+        color: inherit;
+        transition: padding-left .2s
+    }
+
+    .case:last-of-type {
+        border-bottom: 1px solid var(--line)
+    }
+
+    .case:hover {
+        padding-left: 8px
+    }
+
+    .case-t {
+        display: block;
+        font-family: "Spectral", Georgia, serif;
+        font-size: 21px;
+        font-weight: 500;
+        color: var(--text);
+        margin-bottom: 5px
+    }
+
+    .case:hover .case-t {
+        color: var(--calm)
+    }
+
+    .case-d {
+        display: block;
+        font-size: 15px;
+        line-height: 1.55;
+        font-weight: 300;
+        color: var(--muted);
+        max-width: 64ch
+    }
+
+    .site-foot {
+        margin-top: 56px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        font-size: 13px;
+        color: var(--dim)
+    }
+</style>

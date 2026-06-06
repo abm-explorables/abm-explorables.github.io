@@ -1,0 +1,262 @@
+---
+// 青い炎の延焼 (firefront / Drossel–Schwabl 森林火災 SOC) — HOME hero の signature moment。
+// public/sketches/firefront.html を component 化。変更点は (1) サイズ取得を window→canvas 要素
+// (container 追従) (2) ResizeObserver で再初期化 (3) 画面外では IntersectionObserver で重い処理を休止。
+// シミュレーション本体 (grow/strike/sweep/render) は無改変。色は青い炎 (濃青→淡青)。
+---
+
+<canvas id="fireField" class="fire-field" aria-hidden="true"></canvas>
+
+<style>
+    .fire-field {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block
+    }
+</style>
+
+<script>
+    (function () {
+        'use strict';
+
+        var CELL_PX = 4;
+        var GROWTH_FRACTION = 0.0005;
+        var LIGHTNING_PER_FRAME = 0.025;
+        var FIRE_SWEEPS_PER_FRAME = 2;
+        var PREFILL_DENSITY = 0.25;
+        var GLOW_FADE_S = 0.40;
+        var SHIMMER_FADE_S = 0.60;
+        var SHIMMER_GAIN = 0.55;
+        var MAIN_BLUR_PX = 1.1;
+        var BLOOM_PX = 7.0;
+        var BLOOM_GAIN = 0.85;
+
+        var BG = [11, 13, 18];
+        var TREE_DIM = [42, 49, 66];
+        var TREE_MID = [58, 66, 86];
+        var TREE_BRIGHT = [75, 84, 104];
+        var HOT = [175, 205, 255];   // 淡青 — 前線の最も熱い芯
+        var COOL = [42, 74, 138];    // 濃青 — 衰える熾
+        var FIRE_MIN = 0.015;
+
+        var canvas = document.getElementById('fireField');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var off = document.createElement('canvas');
+        var offCtx = off.getContext('2d');
+        var fire = document.createElement('canvas');
+        var fireCtx = fire.getContext('2d');
+
+        var W = 0, H = 0, N = 0;
+        var state, burning, glow, shimmer, noise, qCur, qNext;
+        var cntCur = 0, cntNext = 0;
+        var imgMain, px32Main, imgFire, px32Fire;
+        var lastT = 0, ready = false, visible = true, rafId = 0;
+
+        function packABGR(r, g, b) {
+            return (255 << 24) | ((b & 255) << 16) | ((g & 255) << 8) | (r & 255);
+        }
+
+        function init() {
+            var dpr = Math.min(window.devicePixelRatio || 1, 2);
+            var cssW = canvas.clientWidth;
+            var cssH = canvas.clientHeight;
+            if (cssW < 8 || cssH < 8) { ready = false; return; }
+
+            canvas.width = Math.max(1, Math.round(cssW * dpr));
+            canvas.height = Math.max(1, Math.round(cssH * dpr));
+
+            W = Math.max(8, Math.ceil(cssW / CELL_PX));
+            H = Math.max(8, Math.ceil(cssH / CELL_PX));
+            N = W * H;
+
+            state = new Uint8Array(N);
+            burning = new Uint8Array(N);
+            glow = new Float32Array(N);
+            shimmer = new Float32Array(N);
+            noise = new Float32Array(N);
+            qCur = new Int32Array(N);
+            qNext = new Int32Array(N);
+            cntCur = 0;
+            cntNext = 0;
+
+            off.width = W; off.height = H;
+            fire.width = W; fire.height = H;
+            imgMain = offCtx.createImageData(W, H);
+            px32Main = new Uint32Array(imgMain.data.buffer);
+            imgFire = fireCtx.createImageData(W, H);
+            px32Fire = new Uint32Array(imgFire.data.buffer);
+
+            for (var i = 0; i < N; i++) {
+                noise[i] = Math.random();
+                state[i] = Math.random() < PREFILL_DENSITY ? 1 : 0;
+            }
+            ready = true;
+        }
+
+        function ignite(idx) {
+            if (state[idx] === 1 && burning[idx] === 0) {
+                burning[idx] = 1;
+                glow[idx] = 1;
+                qCur[cntCur++] = idx;
+            }
+        }
+
+        function grow() {
+            var attempts = Math.round(GROWTH_FRACTION * N);
+            for (var k = 0; k < attempts; k++) {
+                var idx = (Math.random() * N) | 0;
+                if (state[idx] === 0) {
+                    state[idx] = 1;
+                    shimmer[idx] = 1;
+                }
+            }
+        }
+
+        function strike() {
+            if (Math.random() < LIGHTNING_PER_FRAME) {
+                ignite((Math.random() * N) | 0);
+            }
+        }
+
+        function sweep() {
+            var n = cntCur;
+            cntNext = 0;
+            for (var i = 0; i < n; i++) {
+                var idx = qCur[i];
+                burning[idx] = 0;
+                state[idx] = 0;
+                glow[idx] = 1;
+                var x = idx % W;
+                var y = (idx / W) | 0;
+                var xl = x > 0, xr = x < W - 1, yu = y > 0, yd = y < H - 1;
+                var nb;
+                if (xl) { nb = idx - 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+                if (xr) { nb = idx + 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+                if (yu) { nb = idx - W; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+                if (yd) { nb = idx + W; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+                if (xl && yu) { nb = idx - W - 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+                if (xr && yu) { nb = idx - W + 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+                if (xl && yd) { nb = idx + W - 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+                if (xr && yd) { nb = idx + W + 1; if (state[nb] === 1 && burning[nb] === 0) { burning[nb] = 1; glow[nb] = 1; qNext[cntNext++] = nb; } }
+            }
+            var tmp = qCur; qCur = qNext; qNext = tmp;
+            cntCur = cntNext;
+        }
+
+        function render(glowDecay, shimmerDecay) {
+            var n = N;
+            var glowCount = 0;
+            var bgr = BG[0], bgg = BG[1], bgb = BG[2];
+            var dr0 = TREE_DIM[0], dg0 = TREE_DIM[1], db0 = TREE_DIM[2];
+            var dr1 = TREE_MID[0], dg1 = TREE_MID[1], db1 = TREE_MID[2];
+            var br0 = TREE_BRIGHT[0], bg0 = TREE_BRIGHT[1], bb0 = TREE_BRIGHT[2];
+            var ar = COOL[0], ag = COOL[1], ab = COOL[2];
+            var rr = HOT[0], rg = HOT[1], rb = HOT[2];
+
+            for (var i = 0; i < n; i++) {
+                var g = glow[i];
+                if (g > FIRE_MIN) {
+                    g *= glowDecay;
+                    glow[i] = g;
+                    glowCount++;
+                    var r, gg, b;
+                    if (g >= 0.5) {                 // fresh: 濃青 -> 淡青 (芯ほど熱い)
+                        var t = (g - 0.5) * 2;
+                        r = ar + (rr - ar) * t;
+                        gg = ag + (rg - ag) * t;
+                        b = ab + (rb - ab) * t;
+                    } else {                         // dying: background -> 濃青
+                        var u = g * 2;
+                        r = bgr + (ar - bgr) * u;
+                        gg = bgg + (ag - bgg) * u;
+                        b = bgb + (ab - bgb) * u;
+                    }
+                    px32Main[i] = packABGR(r | 0, gg | 0, b | 0);
+                    px32Fire[i] = ((Math.min(1, g) * 255) | 0) << 24 | ((b | 0) << 16) | ((gg | 0) << 8) | (r | 0);
+                    continue;
+                }
+                if (g !== 0) glow[i] = 0;
+                px32Fire[i] = 0;
+
+                if (state[i] === 1) {
+                    var nz = noise[i];
+                    var tr = dr0 + (dr1 - dr0) * nz;
+                    var tg = dg0 + (dg1 - dg0) * nz;
+                    var tb = db0 + (db1 - db0) * nz;
+                    var s = shimmer[i];
+                    if (s > 0.004) {
+                        s *= shimmerDecay;
+                        shimmer[i] = s;
+                        var k = s * SHIMMER_GAIN;
+                        tr += (br0 - tr) * k;
+                        tg += (bg0 - tg) * k;
+                        tb += (bb0 - tb) * k;
+                    } else if (s !== 0) {
+                        shimmer[i] = 0;
+                    }
+                    px32Main[i] = packABGR(tr | 0, tg | 0, tb | 0);
+                } else {
+                    px32Main[i] = packABGR(bgr, bgg, bgb);
+                }
+            }
+
+            offCtx.putImageData(imgMain, 0, 0);
+
+            var cw = canvas.width, ch = canvas.height;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.imageSmoothingEnabled = true;
+            ctx.filter = MAIN_BLUR_PX > 0 ? 'blur(' + MAIN_BLUR_PX + 'px)' : 'none';
+            ctx.drawImage(off, 0, 0, cw, ch);
+            ctx.filter = 'none';
+
+            if (glowCount > 0) {
+                fireCtx.putImageData(imgFire, 0, 0);
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = BLOOM_GAIN;
+                ctx.imageSmoothingEnabled = true;
+                ctx.filter = 'blur(' + BLOOM_PX + 'px)';
+                ctx.drawImage(fire, 0, 0, cw, ch);
+                ctx.filter = 'none';
+                ctx.restore();
+            }
+        }
+
+        function frame(t) {
+            rafId = requestAnimationFrame(frame);
+            if (!ready) { lastT = 0; return; }
+            if (!visible) { lastT = t; return; }       // 画面外: ループは維持しつつ重い処理を休止
+            var dt = lastT ? (t - lastT) / 1000 : 1 / 60;
+            lastT = t;
+            if (dt > 0.25) dt = 0.25;
+
+            grow();
+            strike();
+            for (var s = 0; s < FIRE_SWEEPS_PER_FRAME; s++) {
+                if (cntCur === 0) break;
+                sweep();
+            }
+            render(Math.exp(-dt / GLOW_FADE_S), Math.exp(-dt / SHIMMER_FADE_S));
+        }
+
+        var resizeTimer = 0;
+        var ro = new ResizeObserver(function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function () { lastT = 0; init(); }, 160);
+        });
+        ro.observe(canvas);
+
+        if ('IntersectionObserver' in window) {
+            var io = new IntersectionObserver(function (es) {
+                visible = es[0].isIntersecting;
+            }, { threshold: 0 });
+            io.observe(canvas);
+        }
+
+        init();
+        rafId = requestAnimationFrame(frame);
+    })();
+</script>
