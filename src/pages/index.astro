@@ -10,24 +10,28 @@ const demo = base + '/cases/cont-bouchaud/';
 ---
 
 <Base title="ABM Explorables — 金融の複雑系を、自分の手で" bare={true}>
-    <section class="hero">
-        <FireField />
-
-        <header class="site-head">
+    <header class="site-head" id="siteHead">
+        <div class="head-inner">
             <a class="brand" href={home}>ABM Explorables</a>
             <nav class="nav" aria-label="メイン">
                 <a href="#sims">Simulations</a>
                 <a class="soon-link" href={about}>About <span class="soon">準備中</span></a>
             </nav>
-        </header>
+        </div>
+    </header>
 
+    <section class="hero">
+        <FireField />
         <div class="hero-inner">
             <h1 class="hero-msg">
                 <span>一人一人はごく単純な規則で動いているだけ</span>
                 <span>それなのに市場全体は誰の予想も超えていく</span>
                 <span class="last">その瞬間を、ぜひ自分の手で再現してみてほしい</span>
             </h1>
-            <p class="hero-sub">背景は森林火災モデル。臨界に達した系では、たった一つの火花が野全体を駆け抜ける ── 群れの暴走もこれと同じ構造から生まれる。</p>
+            <p class="hero-sub">
+                <span class="sub-a">森林火災モデル</span>
+                <span class="sub-b">ー臨界に達した系では、たった一つの火花が野全体を駆け抜ける</span>
+            </p>
         </div>
     </section>
 
@@ -43,6 +47,24 @@ const demo = base + '/cases/cont-bouchaud/';
     </section>
 </Base>
 
+<script>
+    // 固定ヘッダー: hero の上では透明、スクロールして content に入ると solid navy 帯に
+    // (translucent な glassmorphism は避け、不透明な地で legibility を担保)
+    const head = document.getElementById('siteHead');
+    if (head) {
+        let ticking = false;
+        const apply = () => {
+            if (window.scrollY > window.innerHeight * 0.5) head.classList.add('scrolled');
+            else head.classList.remove('scrolled');
+            ticking = false;
+        };
+        window.addEventListener('scroll', () => {
+            if (!ticking) { requestAnimationFrame(apply); ticking = true; }
+        }, { passive: true });
+        apply();
+    }
+</script>
+
 <style>
     .hero {
         position: relative;
@@ -53,20 +75,31 @@ const demo = base + '/cases/cont-bouchaud/';
         justify-content: center
     }
 
-    /* header — 延焼の上に重ねる */
+    /* header — 延焼の上に重ねて固定。スクロールで solid navy 帯に */
     .site-head {
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        z-index: 2;
+        z-index: 50;
+        background: transparent;
+        border-bottom: 1px solid transparent;
+        transition: background .25s, border-color .25s
+    }
+
+    .site-head.scrolled {
+        background: var(--bg);
+        border-bottom: 1px solid var(--line)
+    }
+
+    .head-inner {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 18px;
         max-width: 1060px;
         margin: 0 auto;
-        padding: 22px 28px;
+        padding: 18px 28px;
         flex-wrap: wrap
     }
 
@@ -139,12 +172,20 @@ const demo = base + '/cases/cont-bouchaud/';
 
     .hero-sub {
         margin: 34px auto 0;
-        max-width: 54ch;
         font-size: 15px;
-        line-height: 1.8;
+        line-height: 1.85;
         font-weight: 300;
         color: var(--muted);
         text-shadow: 0 1px 16px var(--bg)
+    }
+
+    .hero-sub .sub-a,
+    .hero-sub .sub-b {
+        display: block
+    }
+
+    .hero-sub .sub-a {
+        color: var(--dim)
     }
 
     /* 下段 — Simulations */
@@ -152,7 +193,7 @@ const demo = base + '/cases/cont-bouchaud/';
         max-width: 1060px;
         margin: 0 auto;
         padding: 70px 28px 80px;
-        scroll-margin-top: 20px
+        scroll-margin-top: 72px
     }
 
     .sims-h {
@@ -204,8 +245,7 @@ const demo = base + '/cases/cont-bouchaud/';
         font-size: 15px;
         line-height: 1.55;
         font-weight: 300;
-        color: var(--muted);
-        max-width: 64ch
+        color: var(--muted)
     }
 
     .site-foot {
