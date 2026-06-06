@@ -3,7 +3,12 @@
 // MDX page の layout frontmatter 経由でも、直接 import でも使えるよう両対応
 import SiteHeader from '../components/SiteHeader.astro';
 const props = Astro.props.frontmatter ?? Astro.props;
-const { title, bare = false } = props;
+const { title, bare = false, description } = props;
+
+const DEFAULT_DESC = '金融・感染・渋滞 ── 単純な個の相互作用から、暴落や渋滞がひとりでに立ち上がる。エージェント・ベース・モデルを、ブラウザの中で自分の手で動かす explorable。';
+const desc = description ?? DEFAULT_DESC;
+const pageUrl = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL(import.meta.env.BASE_URL.replace(/\/$/, '') + '/og.png', Astro.site).href;
 ---
 
 <!DOCTYPE html>
@@ -13,6 +18,21 @@ const { title, bare = false } = props;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
+    <meta name="description" content={desc} />
+    <link rel="canonical" href={pageUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ABM Explorables" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={desc} />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
