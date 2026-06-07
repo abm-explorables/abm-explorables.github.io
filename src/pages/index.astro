@@ -121,11 +121,12 @@ const traffic = base + '/cases/traffic/';
 
     .big-title {
         margin: 0;
-        font-family: "Fraunces", serif;
-        font-weight: 900;
+        /* Simudyne 的な素っ気ない sans。凝った webfont より plain な system フォントで */
+        font-family: "Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif;
+        font-weight: 600;
         font-size: clamp(46px, 11.5vw, 150px);
-        line-height: .98;
-        letter-spacing: -.02em;
+        line-height: 1.0;
+        letter-spacing: -.025em;
         color: var(--text);
         text-shadow: 0 2px 40px var(--bg), 0 1px 8px var(--bg)
     }
