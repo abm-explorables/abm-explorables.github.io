@@ -10,20 +10,29 @@ const traffic = base + '/cases/traffic/';
 ---
 
 <Base title="ABM Explorables — 金融の複雑系を、自分の手で" description="一人ひとりは単純な規則で動くだけ。それなのに市場全体は誰の予想も超えていく ── その瞬間を、自分の手で再現できる explorable。" bare={true}>
-    <section class="hero">
-        <FireField />
-        <div class="hero-inner">
-            <h1 class="hero-msg">
-                <span>一人一人はごく単純な規則で動いているだけ</span>
-                <span>それなのに市場全体は誰の予想も超えていく</span>
-                <span class="last">その瞬間を、ぜひ自分の手で再現してみてほしい</span>
-            </h1>
-        </div>
+    <section class="hero-scroll">
+        <div class="hero-stage">
+            <FireField />
 
-        <figcaption class="flame-cap">
-            <span class="cap-a">森林火災モデル</span>
-            <span class="cap-b">臨界に達した系では、たった一つの火花が野全体を駆け抜ける</span>
-        </figcaption>
+            <div class="title-layer" id="titleLayer">
+                <h1 class="big-title"><span class="w">ABM</span> <span class="w">Explorables</span></h1>
+            </div>
+
+            <div class="copy-layer" id="copyLayer">
+                <p class="hero-msg">
+                    <span>一人一人はごく単純な規則で動いているだけ</span>
+                    <span>それなのに市場全体は誰の予想も超えていく</span>
+                    <span class="last">その瞬間を、ぜひ自分の手で再現してみてほしい</span>
+                </p>
+            </div>
+
+            <figcaption class="flame-cap">
+                <span class="cap-a">森林火災モデル</span>
+                <span class="cap-b">臨界に達した系では、たった一つの火花が野全体を駆け抜ける</span>
+            </figcaption>
+
+            <div class="scroll-hint" id="scrollHint" aria-hidden="true"><span class="hint-pulse">scroll ↓</span></div>
+        </div>
     </section>
 
     <section class="below" id="sims">
@@ -49,29 +58,85 @@ const traffic = base + '/cases/traffic/';
     </section>
 </Base>
 
+<script>
+    // hero スクロール進捗で 大タイトル→キャッチコピー をクロスフェード
+    const wrap = document.querySelector('.hero-scroll');
+    const title = document.getElementById('titleLayer');
+    const copy = document.getElementById('copyLayer');
+    const hint = document.getElementById('scrollHint');
+    if (wrap && title && copy) {
+        const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+        let ticking = false;
+        const apply = () => {
+            const total = wrap.offsetHeight - window.innerHeight;
+            const scrolled = clamp(-wrap.getBoundingClientRect().top, 0, total);
+            const p = total > 0 ? scrolled / total : 0;
+            const tOp = clamp(1 - p / 0.40, 0, 1);   // タイトルは前半で消える
+            const cOp = clamp((p - 0.30) / 0.40, 0, 1); // コピーは中盤で浮かぶ
+            title.style.opacity = tOp;
+            if (hint) hint.style.opacity = tOp;
+            copy.style.opacity = cOp;
+            copy.style.transform = `translateY(${((1 - cOp) * 18).toFixed(1)}px)`;
+            ticking = false;
+        };
+        window.addEventListener('scroll', () => {
+            if (!ticking) { requestAnimationFrame(apply); ticking = true; }
+        }, { passive: true });
+        window.addEventListener('resize', apply);
+        apply();
+    }
+</script>
+
 <style>
-    .hero {
+    /* sticky scrollytelling: 大タイトル → スクロールでキャッチコピーへクロスフェード */
+    .hero-scroll {
         position: relative;
-        min-height: 100svh;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center
+        height: 200svh
     }
 
-    /* 中央のキャッチコピー + 軽い説明 */
-    .hero-inner {
-        position: relative;
+    .hero-stage {
+        position: sticky;
+        top: 0;
+        height: 100svh;
+        overflow: hidden
+    }
+
+    .title-layer,
+    .copy-layer {
+        position: absolute;
+        inset: 0;
         z-index: 1;
-        max-width: 1060px;
-        width: 100%;
-        margin: 0 auto;
-        padding: 0 28px;
-        text-align: center
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 24px;
+        text-align: center;
+        will-change: opacity, transform
+    }
+
+    .copy-layer {
+        opacity: 0;
+        transform: translateY(18px)
+    }
+
+    .big-title {
+        margin: 0;
+        font-family: "Fraunces", serif;
+        font-weight: 900;
+        font-size: clamp(46px, 11.5vw, 150px);
+        line-height: .98;
+        letter-spacing: -.02em;
+        color: var(--text);
+        text-shadow: 0 2px 40px var(--bg), 0 1px 8px var(--bg)
+    }
+
+    .big-title .w {
+        display: inline
     }
 
     .hero-msg {
         margin: 0;
+        max-width: 1060px;
         font-family: "Spectral", Georgia, serif;
         font-weight: 400;
         font-size: clamp(21px, 3.1vw, 37px);
@@ -90,6 +155,42 @@ const traffic = base + '/cases/traffic/';
         margin-top: .8em;
         color: #c8cbd6;
         font-weight: 300
+    }
+
+    /* 縦長(スマホ)では ABM / Explorables を2段に */
+    @media (max-width: 600px) {
+        .big-title {
+            font-size: clamp(40px, 13vw, 92px);
+            line-height: 1.04
+        }
+
+        .big-title .w {
+            display: block
+        }
+    }
+
+    .scroll-hint {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 64px;
+        z-index: 1;
+        text-align: center;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        letter-spacing: .22em;
+        color: var(--dim);
+        text-shadow: 0 1px 14px var(--bg);
+        pointer-events: none
+    }
+
+    .hint-pulse {
+        animation: hintPulse 2.4s ease-in-out infinite
+    }
+
+    @keyframes hintPulse {
+        0%, 100% { opacity: .4 }
+        50% { opacity: .9 }
     }
 
     /* 延焼の作品ラベル — hero 左下隅にひっそり置く(中央のコピーと競合させない) */
